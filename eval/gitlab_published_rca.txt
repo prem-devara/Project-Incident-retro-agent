@@ -1,0 +1,21 @@
+Root cause analysis
+To analyse the root cause of these problems we'll use a technique called "The 5 Whys". We'll break up the incident into 2 main problems: GitLab.com being down, and it taking a long time to restore GitLab.com.
+
+Problem 1: GitLab.com was down for about 18 hours.
+
+Why was GitLab.com down? - The database directory of the primary database was removed by accident, instead of removing the database directory of the secondary.
+Why was the database directory removed? - Database replication stopped, requiring the secondary to be reset/rebuilt. This in turn requires that the PostgreSQL data directory is empty. Restoring this required manual work as this was not automated, nor was it documented properly.
+Why did replication stop? - A spike in database load caused the database replication process to stop. This was due to the primary removing WAL segments before the secondary could replicate them.
+Why did the database load increase? - This was caused by two events happening at the same time: an increase in spam, and a process trying to remove a GitLab employee and their associated data.
+Why was a GitLab employee scheduled for removal? - The employee was reported for abuse by a troll. The current system used for responding to abuse reports makes it too easy to overlook the details of those reported. As a result the employee was accidentally scheduled for removal.
+
+Problem 2: restoring GitLab.com took over 18 hours.
+
+Why did restoring GitLab.com take so long? - GitLab.com had to be restored using a copy of the staging database. This was hosted on slower Azure VMs in a different region.
+Why was the staging database needed for restoring GitLab.com? - Azure disk snapshots were not enabled for the database servers, and the periodic database backups using pg_dump were not working.
+Why could we not fail over to the secondary database host? - The secondary database's data was wiped as part of restoring database replication. As such it could not be used for disaster recovery.
+Why could we not use the standard backup procedure? - The standard backup procedure uses pg_dump to perform a logical backup of the database. This procedure failed silently because it was using PostgreSQL 9.2, while GitLab.com runs on PostgreSQL 9.6.
+Why did the backup procedure fail silently? - Notifications were sent upon failure, but because of the Emails being rejected there was no indication of failure. The sender was an automated process with no other means to report any errors.
+Why were the Emails rejected? - Emails were rejected by the receiving mail server due to the Emails not being signed using DMARC.
+Why were Azure disk snapshots not enabled? - We assumed our other backup procedures were sufficient. Furthermore, restoring these snapshots can take days.
+Why was the backup procedure not tested on a regular basis? - Because there was no ownership, as a result nobody was responsible for testing this procedure.

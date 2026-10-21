@@ -1,0 +1,20 @@
+CONTRIBUTING FACTORS
+- Spam traffic and a background job overloaded the primary database
+- Replication broke and the replica fell too far behind to recover
+- Backups had been failing silently; failure alert emails were rejected
+- Disk snapshots were not enabled for the database servers
+- No one owned testing whether backups could actually be restored
+- An engineer deleted data on the production server instead of the replica
+
+
+ACTION ITEMS
+- Make server prompts clearly show which host and environment you are on
+- Set database connection limits to safe values
+- Restore replicas and balance load across multiple secondaries
+- Take hourly snapshots and enable disk snapshots for databases
+- Evaluate better backup and point-in-time recovery tools
+- Automatically test backup restores on a regular schedule
+- Monitor backups and publish a backup status dashboard
+- Improve replication runbooks and documentation
+- Assign an owner for data durability and wider disaster recovery
+- Stop spam-driven user removals from hard-deleting data
