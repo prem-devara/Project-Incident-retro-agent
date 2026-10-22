@@ -1,80 +1,86 @@
 {
-  "impact_summary": "GitLab.com was degraded beginning around 19:00 UTC on January 31st, with many users unable to post comments on issues and merge requests while load was brought under control. Database changes made between January 31st 17:20 UTC and 23:30 UTC were permanently lost, including at least 5000 projects, 5000 comments, and roughly 700 users, affecting only GitLab.com users. Recovery from the outage was not completed until around 18:00 UTC on February 1st, roughly 24 hours later, after an approximately 18-hour data copy.",
+  "impact_summary": "GitLab.com was unavailable or severely degraded for an extended period following the January 31st database incident. Database data created between January 31st 17:20 UTC and 23:30 UTC was permanently lost, including an estimated 5000 projects, 5000 comments, and roughly 700 users (Git repositories and wikis were not affected). Recovery required restoring from a staging snapshot taken about 6 hours before the outage, with copying taking approximately 18 hours, and the service was fully restored around February 1st 18:00 UTC.",
   "action_items": [
     {
-      "action": "Enable WAL archiving on the production PostgreSQL primary so that replicas can catch up after falling behind, rather than requiring a manual re-synchronisation.",
-      "owner_role": "Infrastructure team",
+      "action": "Enable WAL archiving (continuous archiving to object storage) for the production PostgreSQL primary so replicas can catch up without manual re-synchronisation after falling behind.",
+      "owner_role": "Database team",
       "type": "prevent",
       "priority": "high"
     },
     {
-      "action": "Verify backups by performing regular automated restore tests of pg_dump and LVM/disk-based backups into an isolated environment, and alert on restore failures.",
+      "action": "Verify and fix the pg_dump backup procedure so the client binary version always matches the production PostgreSQL major version, decoupled from the presence of a local data directory.",
+      "owner_role": "Database team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Add automated restore tests that regularly restore the latest backup into a scratch environment and verify row counts and integrity, failing loudly if backups are missing or empty.",
       "owner_role": "Infrastructure team",
       "type": "detect",
       "priority": "high"
     },
     {
-      "action": "Fix the pg_dump version selection so backup jobs on application servers use the PostgreSQL 9.6 client binaries matching the production database, and fail loudly if the versions mismatch.",
-      "owner_role": "Infrastructure team",
-      "type": "prevent",
-      "priority": "high"
-    },
-    {
-      "action": "Enable DMARC alignment for cronjob notification emails and add an independent alerting path (such as a dead-man's-switch check on backup completion) so backup failures cannot go unnoticed.",
+      "action": "Configure backup and cronjob failure alerts to use a delivery path that passes DMARC (or a non-email alerting channel) and add alerting on the absence of new backup objects in the S3 bucket.",
       "owner_role": "Infrastructure team",
       "type": "detect",
       "priority": "high"
     },
     {
-      "action": "Require explicit host identity confirmation (such as hostname checks or a confirmation prompt showing the target role) before running destructive operations on database data directories, and restrict such commands to documented runbooks.",
-      "owner_role": "Database team",
-      "type": "prevent",
-      "priority": "high"
-    },
-    {
-      "action": "Document in engineering runbooks that pg_basebackup waits silently for the primary to begin streaming, and add expected-output and timeout guidance for this step.",
-      "owner_role": "Database team",
-      "type": "prevent",
-      "priority": "medium"
-    },
-    {
-      "action": "Review and correct PostgreSQL configuration on the primary, lowering max_connections from an unreasonable value and sizing max_wal_senders appropriately, and add configuration review checks to detect out-of-range settings.",
-      "owner_role": "Database team",
-      "type": "prevent",
-      "priority": "medium"
-    },
-    {
-      "action": "Enable Azure disk snapshots for database servers, and document expected restore times for snapshots across storage accounts.",
+      "action": "Enable Azure disk snapshots for all production database servers and document the expected restore time from each storage account location.",
       "owner_role": "Infrastructure team",
       "type": "mitigate",
       "priority": "high"
     },
     {
-      "action": "Establish a defined incident response process with a designated incident commander and a coordination channel, so responders do not rely on informal Slack requests to locate backups during an outage.",
-      "owner_role": "On-call engineer",
-      "type": "mitigate",
-      "priority": "medium"
+      "action": "Add guardrails to destructive database operations, such as requiring explicit confirmation of hostname/role and a safe-mode wrapper that refuses to remove data directories on a host reporting primary role.",
+      "owner_role": "Database team",
+      "type": "prevent",
+      "priority": "high"
     },
     {
-      "action": "Evaluate deploying a multi-replica database topology with a dedicated read-capable standby and connection pooling to reduce single-primary load and single point of failure risk.",
+      "action": "Update engineering runbooks to document that pg_basebackup waits silently for the primary to begin streaming, including expected output and how to verify progress from the primary side.",
       "owner_role": "Database team",
       "type": "prevent",
       "priority": "medium"
     },
     {
-      "action": "Investigate the background user-removal job so that accidental or flagged account deletions are soft-deleted and rate-limited rather than hard-deleted in bulk.",
+      "action": "Review and correct production PostgreSQL configuration, including max_connections, against kernel semaphore limits, and add a configuration audit to detect values that would block restarts.",
+      "owner_role": "Database team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Fix the background account-removal job so it performs soft deletion and rate-limits bulk data removal to avoid large database load spikes.",
       "owner_role": "Backend team",
       "type": "prevent",
       "priority": "medium"
     },
     {
-      "action": "Require ad hoc production-to-staging snapshots to follow a documented, reviewed procedure, and restrict load testing on staging environments that may affect production risk.",
+      "action": "Introduce read-load distribution (e.g., connection pooling and read replicas via pgpool-II or equivalent) to reduce dependence on a single primary database.",
+      "owner_role": "Database team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Document a disaster recovery runbook with an explicit restore order, validated restore options, and designated decision-makers so engineers are not searching for backups under pressure.",
+      "owner_role": "Infrastructure team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Use premium or equivalently performant storage for staging or dedicated recovery hosts where restoration speed matters, and measure restore throughput as part of DR testing.",
+      "owner_role": "Infrastructure team",
+      "type": "mitigate",
+      "priority": "low"
+    },
+    {
+      "action": "Add host identity indicators (for example, prominent role labels in shell prompts and tooling) to reduce the chance of running destructive commands on the wrong server.",
       "owner_role": "Infrastructure team",
       "type": "prevent",
       "priority": "low"
     },
     {
-      "action": "Provision premium or faster storage for staging database hosts used in restore procedures, or document restore time expectations based on current storage throughput.",
+      "action": "Scale the public monitoring dashboard so it stays available during high-traffic incidents, decoupled from the infrastructure it reports on.",
       "owner_role": "Infrastructure team",
       "type": "mitigate",
       "priority": "low"

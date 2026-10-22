@@ -1,56 +1,48 @@
 {
   "factors": [
     {
-      "factor": "Single primary database with a single secondary, creating a single point of failure and limited capacity to absorb load",
-      "evidence": "\"GitLab.com currently uses a single primary and a single secondary in hot-standby mode. The standby is only used for failover purposes. In this setup a single database has to handle all the load, which is not ideal.\""
+      "factor": "Single primary database with a single secondary (no horizontal load distribution) meant all load fell on one database, increasing susceptibility to load spikes and replication lag",
+      "evidence": "\"In this setup a single database has to handle all the load, which is not ideal.\""
     },
     {
-      "factor": "Replication lag and failure because WAL segments were removed before the secondary could consume them, with no WAL archiving to allow catch-up",
+      "factor": "Replication lag caused WAL segments needed by the secondary to be removed from the primary, and without WAL archiving the secondary could only be resynchronised manually",
       "evidence": "\"The replication failed as WAL segments needed by the secondary were already removed from the primary. As GitLab.com was not using WAL archiving, the secondary had to be re-synchronised manually.\""
     },
     {
-      "factor": "Insufficient capacity and configuration guardrails on the primary (max_wal_senders too low, max_connections set to an unreasonably high value that had gone unnoticed)",
-      "evidence": "\"pg_basebackup mentioned that it could not connect due to the master not having enough available replication connections (as controlled by the max_wal_senders option).\" and \"max_connections... was set to 8000. Such a value is way too high, yet it had been applied almost a year ago and was working fine until that point.\""
+      "factor": "Increased database load from suspected spam and a background account-removal job compounded the replication problem",
+      "evidence": "\"GitLab.com starts experiencing an increase in database load due to what we suspect was spam... part of the load was caused by a background job trying to remove a GitLab employee and their associated data.\""
     },
     {
-      "factor": "Unclear tooling behaviour and insufficient documentation of pg_basebackup, leading to misdiagnosis of a silent wait as a fault",
-      "evidence": "\"It would later be revealed by another engineer... that this is normal behaviour: pg_basebackup will wait for the primary to start sending over replication data and it will sit and wait silently until that time. Unfortunately this was not clearly documented in our engineering runbooks nor in the official pg_basebackup document.\""
+      "factor": "Under-documented pg_basebackup behaviour led engineers to misinterpret normal silent waiting as a fault, prolonging troubleshooting",
+      "evidence": "\"this is normal behaviour: pg_basebackup will wait for the primary to start sending over replication data and it will sit and wait silently until that time. Unfortunately this was not clearly documented in our engineering runbooks nor in the official pg_basebackup document.\""
     },
     {
-      "factor": "Risky manual operations under pressure without safeguards to confirm the target host, allowing a destructive command to run on the primary instead of the secondary",
+      "factor": "Stressful, high-pressure troubleshooting conditions and ambiguous host identity contributed to a destructive command being run on the wrong server",
       "evidence": "\"Trying to restore the replication process, an engineer proceeds to wipe the PostgreSQL database directory, errantly thinking they were doing so on the secondary. Unfortunately this process was executed on the primary instead.\""
     },
     {
-      "factor": "Backup procedure silently failing due to a pg_dump version mismatch caused by Omnibus version detection that did not apply on application servers",
-      "evidence": "\"the backup procedure was using pg_dump 9.2, while our database is running PostgreSQL 9.6... A difference in major versions results in pg_dump producing an error, terminating the backup procedure.\" and \"The pg_dump procedure was executed on a regular application server, not the database server. As a result there is no PostgreSQL data directory present on these servers, thus Omnibus defaults to PostgreSQL 9.2.\""
+      "factor": "Backup procedure was not verified; pg_dump version selection depended on the presence of a local data directory, causing the wrong client version to be used on application servers",
+      "evidence": "\"the backup procedure was using pg_dump 9.2, while our database is running PostgreSQL 9.6... As a result there is no PostgreSQL data directory present on these servers, thus Omnibus defaults to PostgreSQL 9.2.\""
     },
     {
-      "factor": "Failure notifications for backup cronjobs were rejected by DMARC, so backup failures went unnoticed for an extended period",
-      "evidence": "\"Unfortunately DMARC was not enabled for the cronjob emails, resulting in them being rejected by the receiver. This means we were never aware of the backups failing, until it was too late.\""
+      "factor": "Backup failure notifications were silently lost because cronjob emails were rejected by DMARC, so failures went unnoticed",
+      "evidence": "\"these notifications are sent by email... DMARC was not enabled for the cronjob emails, resulting in them being rejected by the receiver. This means we were never aware of the backups failing, until it was too late.\""
     },
     {
-      "factor": "Backup and recovery procedures were never validated by restore testing, so their broken state was not discovered until needed",
-      "evidence": "\"Normally in an event like this, one should be able to restore a database in relatively little time using a recent backup... At this point the replication process was broken and data had already been wiped from both the primary and secondary.\" and \"The S3 bucket was empty, and there was no recent backup to be found anywhere.\""
+      "factor": "Disaster recovery relied on untested or unsuitable mechanisms: Azure disk snapshots were not enabled for database servers, and LVM snapshots were not designed for disaster recovery",
+      "evidence": "\"While enabled for the NFS servers, these snapshots were not enabled for any of the database servers as we assumed that our other backup procedures were sufficient enough.\" and \"the produced snapshots are not really meant to be used for disaster recovery.\""
     },
     {
-      "factor": "Disaster recovery relied on LVM snapshots not designed for DR, and Azure disk snapshots were disabled for database servers based on an untested assumption",
-      "evidence": "\"The produced snapshots are not really meant to be used for disaster recovery.\" and \"While enabled for the NFS servers, these snapshots were not enabled for any of the database servers as we assumed that our other backup procedures were sufficient enough.\""
+      "factor": "Recovery was slowed by slow, throttled storage in staging (Azure classic without premium storage) chosen to save costs",
+      "evidence": "\"These disks are network disks and are throttled to a really low number (around 60Mbps)... the bottleneck was in the drives.\""
     },
     {
-      "factor": "Ad hoc, manual snapshot taken from production to staging outside the normal schedule, and the staging environment being used for load testing that raised production risk",
-      "evidence": "\"prior to starting this work, our engineer took an LVM snapshot of the production database and loaded this into the staging environment... This procedure normally happens automatically once every 24 hours (at 01:00 UTC), but they wanted a more up to date copy of the database.\""
-    },
-    {
-      "factor": "Sustained, abnormal production database load (suspected spam plus a background deletion job) that drove replication lag and consumed engineers' time",
-      "evidence": "\"GitLab.com starts experiencing an increase in database load due to what we suspect was spam.\" and \"part of the load was caused by a background job trying to remove a GitLab employee and their associated data... accidentally scheduled for removal.\""
-    },
-    {
-      "factor": "Slow restoration path: staging used cheap throttled disks with no premium storage, making data copying the dominant bottleneck in recovery",
-      "evidence": "\"For our staging environment we were using Azure classic, without Premium Storage... As a result the disks are very slow, resulting in them being the main bottleneck in the restoration process.\" and \"Copying the data from the staging to the production host took around 18 hours.\""
-    },
-    {
-      "factor": "Inadequate communication and coordination during the incident, with engineers searching for backups and seeking help informally on Slack rather than through a defined incident process",
+      "factor": "Multiple restore options were not validated in advance, and the backups' failures had gone undetected, so engineers searched for backups under pressure without knowing their state",
       "evidence": "\"Hoping they could restore the database the engineers involved went to look for the database backups, and asked for help on Slack. Unfortunately the process of both finding and using backups failed completely.\""
+    },
+    {
+      "factor": "Production configuration drift: max_connections set to 8000 for nearly a year, which caused semaphore limits to block PostgreSQL restart when max_wal_senders was raised",
+      "evidence": "\"In our case this was set to 8000. Such a value is way too high, yet it had been applied almost a year ago and was working fine until that point.\""
     }
   ]
 }
