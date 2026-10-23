@@ -1,0 +1,83 @@
+{
+  "impact_summary": "On January 31st, GitLab.com experienced a severe database incident that began with a load spike (suspected spam) and escalated after replication failed and about 300 GB of production PostgreSQL data was accidentally deleted. Database data created between January 31st 17:20 UTC and 23:30 UTC was lost, including an estimated 5000 projects, 5000 comments, and roughly 700 users, affecting only GitLab.com users. Recovery required restoring from a six-hour-old LVM snapshot, with GitLab.com restored on February 1st around 18:00 UTC, roughly 18 hours of copying alone.",
+  "action_items": [
+    {
+      "action": "Enable WAL archiving for the production PostgreSQL cluster so replicas can catch up from archived segments instead of requiring manual re-synchronisation.",
+      "owner_role": "Infrastructure team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Enable automated Azure disk snapshots and regular verified pg_dump/base backups for all database servers, with restore tests run on a schedule.",
+      "owner_role": "Infrastructure team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Fix the backup procedure to use the pg_dump binary matching the production PostgreSQL major version, and fail loudly when versions mismatch.",
+      "owner_role": "Database reliability team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Add monitoring and alerting that verifies a successful backup has completed within the expected window and pages on absence, rather than relying on cronjob emails.",
+      "owner_role": "Monitoring team",
+      "type": "detect",
+      "priority": "high"
+    },
+    {
+      "action": "Enable DMARC for the email domain used by cronjob and system notifications so failure alerts are delivered.",
+      "owner_role": "Infrastructure team",
+      "type": "detect",
+      "priority": "medium"
+    },
+    {
+      "action": "Add safeguards to destructive database operations, such as hostname/role checks and an explicit confirmation step that verifies the target is the secondary before wiping a data directory.",
+      "owner_role": "Database reliability team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Review and correct the max_connections setting and document a standard configuration review process for PostgreSQL parameters.",
+      "owner_role": "Database reliability team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Document pg_basebackup's silent waiting behaviour in the engineering runbooks and create a tested, step-by-step replica rebuild runbook.",
+      "owner_role": "Database reliability team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Set up a disaster-recovery runbook and conduct regular restore drills so recovery paths are verified before they are needed, rather than relying on ad hoc Slack coordination.",
+      "owner_role": "On-call engineer",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Scale out database load by evaluating read replicas or query load balancing, reducing the single primary as a single point of failure.",
+      "owner_role": "Database reliability team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Fix the account-removal background job so flagged accounts are not scheduled for hard deletion, and add rate limits to bulk deletion jobs.",
+      "owner_role": "Application backend team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Restrict ad hoc out-of-schedule production snapshots and require a documented change request for any production data copy to staging.",
+      "owner_role": "Infrastructure team",
+      "type": "prevent",
+      "priority": "low"
+    },
+    {
+      "action": "Upgrade staging database storage to premium disks or otherwise ensure restore throughput is sufficient to meet recovery time objectives.",
+      "owner_role": "Infrastructure team",
+      "type": "mitigate",
+      "priority": "low"
+    }
+  ]
+}

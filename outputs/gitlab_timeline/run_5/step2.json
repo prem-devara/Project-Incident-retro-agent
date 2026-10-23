@@ -1,0 +1,60 @@
+{
+  "factors": [
+    {
+      "factor": "Single primary database with a single secondary, making the primary a single point of failure and forcing all load onto one database",
+      "evidence": "\"GitLab.com currently uses a single primary and a single secondary in hot-standby mode... In this setup a single database has to handle all the load, which is not ideal.\""
+    },
+    {
+      "factor": "Sudden database load spike (suspected spam plus a background data-removal job) that caused replication lag and WAL segments to be removed before the secondary could consume them",
+      "evidence": "\"GitLab.com starts experiencing an increase in database load due to what we suspect was spam... part of the load was caused by a background job trying to remove a GitLab employee and their associated data.\" and \"The replication failed as WAL segments needed by the secondary were already removed from the primary.\""
+    },
+    {
+      "factor": "No WAL archiving, so the secondary could not catch up and had to be manually re-synchronised",
+      "evidence": "\"As GitLab.com was not using WAL archiving, the secondary had to be re-synchronised manually.\""
+    },
+    {
+      "factor": "Inadequate or undocumented operational knowledge of pg_basebackup behaviour, leading to a silent hang and misdiagnosis",
+      "evidence": "\"pg_basebackup will wait for the primary to start sending over replication data and it will sit and wait silently until that time. Unfortunately this was not clearly documented in our engineering runbooks nor in the official pg_basebackup document.\""
+    },
+    {
+      "factor": "Misconfiguration (max_connections set to 8000) that had gone unnoticed for almost a year and blocked the max_wal_senders change during the incident",
+      "evidence": "\"In our case this was set to 8000. Such a value is way too high, yet it had been applied almost a year ago and was working fine until that point.\""
+    },
+    {
+      "factor": "Destructive commands run on the wrong host under pressure, with no safeguard distinguishing primary from secondary",
+      "evidence": "\"an engineer proceeds to wipe the PostgreSQL database directory, errantly thinking they were doing so on the secondary. Unfortunately this process was executed on the primary instead.\""
+    },
+    {
+      "factor": "Backup procedure silently broken: pg_dump 9.2 used against PostgreSQL 9.6, so no usable backups existed",
+      "evidence": "\"the backup procedure was using pg_dump 9.2, while our database is running PostgreSQL 9.6... A difference in major versions results in pg_dump producing an error, terminating the backup procedure.\""
+    },
+    {
+      "factor": "Backup failures went unnoticed because failure notifications were rejected by the receiver",
+      "evidence": "\"Unfortunately DMARC was not enabled for the cronjob emails, resulting in them being rejected by the receiver. This means we were never aware of the backups failing, until it was too late.\""
+    },
+    {
+      "factor": "Backup and recovery procedures were never tested, so the team could not quickly find and use restore sources",
+      "evidence": "\"Hoping they could restore the database the engineers involved went to look for the database backups, and asked for help on Slack. Unfortunately the process of both finding and using backups failed completely.\""
+    },
+    {
+      "factor": "Azure disk snapshots not enabled for database servers, and cross-account snapshot restore is very slow, limiting recovery options",
+      "evidence": "\"these snapshots were not enabled for any of the database servers as we assumed that our other backup procedures were sufficient enough.\" and \"in one such case it took over a week to restore a snapshot.\""
+    },
+    {
+      "factor": "Slow, low-performance staging storage (no premium storage) made data copying the main recovery bottleneck",
+      "evidence": "\"For our staging environment we were using Azure classic, without Premium Storage... the disks are very slow, resulting in them being the main bottleneck in the restoration process.\" and \"Copying the data from the staging to the production host took around 18 hours.\""
+    },
+    {
+      "factor": "Recovery point limited to a stale LVM snapshot, not designed for disaster recovery, increasing data loss",
+      "evidence": "\"The LVM snapshots are primarily used to easily copy data from our production environment to our staging environment... the produced snapshots are not really meant to be used for disaster recovery.\""
+    },
+    {
+      "factor": "Production work done in parallel with the incident and a staging snapshot copy created ad hoc outside the normal schedule, increasing load and risk during an already stressful period",
+      "evidence": "\"prior to starting this work, our engineer took an LVM snapshot of the production database and loaded this into the staging environment... This procedure normally happens automatically once every 24 hours (at 01:00 UTC), but they wanted a more up to date copy of the database.\""
+    },
+    {
+      "factor": "Communication and monitoring gaps: public status dashboard could not handle load during the outage",
+      "evidence": "\"the current setup for this website was not able to handle the load produced by users using this service during the outage.\""
+    }
+  ]
+}

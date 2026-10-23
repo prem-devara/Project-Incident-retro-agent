@@ -1,0 +1,68 @@
+{
+  "events": [
+    {
+      "time": "January 31st",
+      "description": "An engineer starts setting up multiple PostgreSQL servers in the staging environment to try out pgpool-II for load balancing queries (infrastructure#259)."
+    },
+    {
+      "time": "January 31st ~17:20 UTC",
+      "description": "Prior to starting this work, the engineer takes an LVM snapshot of the production database and loads it into the staging environment, outside the normal automatic 01:00 UTC schedule."
+    },
+    {
+      "time": "January 31st ~19:00 UTC",
+      "description": "GitLab.com starts experiencing a significant increase in database load, suspected to be spam; many users are unable to post comments on issues and merge requests, and getting load under control takes several hours."
+    },
+    {
+      "time": "January 31st (later determined)",
+      "description": "Part of the load is traced to a background job trying to remove a GitLab employee's account and associated data, which was accidentally scheduled for removal after being flagged for abuse."
+    },
+    {
+      "time": "January 31st ~23:00 UTC",
+      "description": "Due to increased load, PostgreSQL secondary replication lags and fails because WAL segments were already removed from the primary; with no WAL archiving, the secondary must be manually re-synchronised."
+    },
+    {
+      "time": "January 31st ~23:00 UTC (following attempts)",
+      "description": "pg_basebackup hangs without meaningful output; after several tries it reports the master lacks available replication connections, so max_wal_senders is temporarily raised from 3 to 32."
+    },
+    {
+      "time": "January 31st (after max_wal_senders change)",
+      "description": "PostgreSQL refuses to restart due to too many semaphores; max_connections (set to 8000) is reduced to 2000, and PostgreSQL restarts successfully."
+    },
+    {
+      "time": "January 31st (after restart)",
+      "description": "pg_basebackup still does not start replication immediately; strace shows it hanging in a poll call with no further useful information."
+    },
+    {
+      "time": "January 31st ~23:30 UTC",
+      "description": "An engineer suspects pg_basebackup created files in the secondary's data directory during previous attempts; this is later revealed to be normal behaviour, which was not documented in runbooks or official documentation."
+    },
+    {
+      "time": "January 31st ~23:30 UTC",
+      "description": "While trying to restore replication, an engineer wipes the PostgreSQL data directory believing it is the secondary, but it is the primary; the process is terminated a second or two later, but around 300 GB of data has already been removed."
+    },
+    {
+      "time": "January 31st (after data loss)",
+      "description": "Engineers look for database backups and ask for help on Slack; the process of finding and using backups fails completely."
+    },
+    {
+      "time": "January 31st (discovered during recovery)",
+      "description": "The pg_dump backups are found to be missing: the S3 bucket is empty because the backup used pg_dump 9.2 against a PostgreSQL 9.6 database, causing the backup to fail; cronjob failure emails were rejected due to DMARC not being enabled, so the failure went unnoticed."
+    },
+    {
+      "time": "January 31st (discovered during recovery)",
+      "description": "Azure disk snapshots are found to be disabled for database servers, as they were assumed unnecessary given other backup procedures."
+    },
+    {
+      "time": "February 1st ~17:00 UTC (approx. 18 hours of copying after decision)",
+      "description": "The GitLab.com database is restored without webhooks; the restoration used the LVM snapshot from ~6 hours before the outage, after copying data from staging to production took around 18 hours due to slow disks."
+    },
+    {
+      "time": "February 1st ~18:00 UTC",
+      "description": "Final restoration procedures are completed, including restoring webhooks and confirming everything operates as expected."
+    },
+    {
+      "time": "January 31st 17:20 UTC (restored state)",
+      "description": "The database is restored to the state it was at January 31st 17:20 UTC; data created between January 31st 17:20 UTC and 23:30 UTC is lost."
+    }
+  ]
+}

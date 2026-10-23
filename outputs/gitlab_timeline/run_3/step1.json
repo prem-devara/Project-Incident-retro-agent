@@ -1,0 +1,40 @@
+{
+  "events": [
+    {
+      "time": "January 31st",
+      "description": "An engineer starts setting up multiple PostgreSQL servers in staging to try out pgpool-II for load balancing queries (infrastructure#259)."
+    },
+    {
+      "time": "± 17:20 UTC (January 31st)",
+      "description": "Prior to starting this work, the engineer takes an LVM snapshot of the production database and loads it into the staging environment to get a more up-to-date copy for load testing."
+    },
+    {
+      "time": "± 19:00 UTC (January 31st)",
+      "description": "GitLab.com experiences a sharp increase in database load, suspected to be spam; many users cannot post comments on issues and merge requests, and getting load under control takes several hours. Part of the load is later found to come from a background job removing an employee's account accidentally scheduled for removal after being flagged for abuse."
+    },
+    {
+      "time": "± 23:00 UTC (January 31st)",
+      "description": "Due to increased load, the PostgreSQL secondary's replication lags and fails because required WAL segments were already removed from the primary; with no WAL archiving, the secondary must be manually re-synchronised. An engineer wipes the secondary's data directory and runs pg_basebackup, which hangs silently and then reports that the primary lacks available replication connections."
+    },
+    {
+      "time": "After the pg_basebackup failures (around ± 23:00–23:30 UTC, January 31st)",
+      "description": "Engineers temporarily raise max_wal_senders from 3 to 32; PostgreSQL refuses to restart due to too many semaphores, so max_connections is reduced from 8000 to 2000, allowing a successful restart. pg_basebackup still does not start replication, and strace shows it hanging in a poll call."
+    },
+    {
+      "time": "± 23:30 UTC (January 31st)",
+      "description": "An engineer suspects pg_basebackup's earlier attempts created files in the secondary's data directory. While trying to restore replication, an engineer mistakenly wipes the PostgreSQL data directory on the primary instead of the secondary; the process is terminated a second or two later, but around 300 GB of data has already been removed."
+    },
+    {
+      "time": "After the data deletion (January 31st)",
+      "description": "Engineers look for database backups and ask for help on Slack; the process of finding and using backups fails completely."
+    },
+    {
+      "time": "February 1st, 17:00 UTC",
+      "description": "GitLab.com's database is restored (without webhooks) from the LVM snapshot taken about 6 hours before the outage, as the best option to minimise data loss, a process that took roughly 18 hours of copying over slow disks."
+    },
+    {
+      "time": "Around 18:00 UTC (February 1st)",
+      "description": "Final restoration procedures are completed, including restoring webhooks and confirming everything operates as expected."
+    }
+  ]
+}

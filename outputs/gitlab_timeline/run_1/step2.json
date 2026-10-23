@@ -1,0 +1,56 @@
+{
+  "factors": [
+    {
+      "factor": "Single primary database handling all load with a standby used only for failover, creating a single point of failure and making the database heavily loaded",
+      "evidence": "\"GitLab.com currently uses a single primary and a single secondary in hot-standby mode. The standby is only used for failover purposes. In this setup a single database has to handle all the load, which is not ideal.\""
+    },
+    {
+      "factor": "Sustained increase in database load (suspected spam and a background user-removal job) overwhelmed the primary and caused replication lag",
+      "evidence": "\"GitLab.com starts experiencing an increase in database load due to what we suspect was spam.\" and \"Due to the increased load, our PostgreSQL secondary's replication process started to lag behind.\""
+    },
+    {
+      "factor": "No WAL archiving, so the secondary could not catch up after WAL segments were removed and had to be manually re-synchronised",
+      "evidence": "\"As GitLab.com was not using WAL archiving, the secondary had to be re-synchronised manually.\""
+    },
+    {
+      "factor": "Insufficient documentation of pg_basebackup behaviour in runbooks and official docs, leading to confusion and misdiagnosis of the hang",
+      "evidence": "\"Unfortunately this was not clearly documented in our engineering runbooks nor in the official pg_basebackup document.\""
+    },
+    {
+      "factor": "Manual, high-risk operations performed under stress with no safeguard distinguishing primary from secondary hosts, allowing a destructive command to run on the wrong host",
+      "evidence": "\"Trying to restore the replication process, an engineer proceeds to wipe the PostgreSQL database directory, errantly thinking they were doing so on the secondary. Unfortunately this process was executed on the primary instead.\""
+    },
+    {
+      "factor": "Backup procedure silently broken: pg_dump version mismatch with PostgreSQL 9.6 caused every backup to fail without anyone noticing",
+      "evidence": "\"the backup procedure was using pg_dump 9.2, while our database is running PostgreSQL 9.6... A difference in major versions results in pg_dump producing an error, terminating the backup procedure.\""
+    },
+    {
+      "factor": "Failure notifications for backup cronjobs were not delivered because DMARC was not enabled for cronjob emails, so the failure went unnoticed",
+      "evidence": "\"While notifications are enabled for any cronjobs that error, these notifications are sent by email... DMARC was not enabled for the cronjob emails, resulting in them being rejected by the receiver. This means we were never aware of the backups failing, until it was too late.\""
+    },
+    {
+      "factor": "Backups were never verified or tested for restorability, so the absence of usable backups was discovered only during the incident",
+      "evidence": "\"Hoping they could restore the database the engineers involved went to look for the database backups... Unfortunately the process of both finding and using backups failed completely.\""
+    },
+    {
+      "factor": "Disaster recovery relied on snapshots not designed for DR, and Azure disk snapshots were not enabled for database servers, leaving only LVM snapshots with a large potential data loss window",
+      "evidence": "\"While enabled for the NFS servers, these snapshots were not enabled for any of the database servers as we assumed that our other backup procedures were sufficient enough.\" and \"the produced snapshots are not really meant to be used for disaster recovery.\""
+    },
+    {
+      "factor": "Slow staging storage (throttled network disks) made restoration from snapshot a bottleneck, extending the outage by many hours",
+      "evidence": "\"These disks are network disks and are throttled to a really low number (around 60Mbps)... Copying the data from the staging to the production host took around 18 hours.\""
+    },
+    {
+      "factor": "Production configuration left unchanged for a long time (max_connections of 8000) that was unsafe and only surfaced when settings were changed under pressure",
+      "evidence": "\"Such a value is way too high, yet it had been applied almost a year ago and was working fine until that point.\""
+    },
+    {
+      "factor": "Staging-to-production data copy and load testing activity during a period of high production load added risk and consumed resources, with the LVM snapshot taken ad hoc outside the normal schedule",
+      "evidence": "\"prior to starting this work, our engineer took an LVM snapshot of the production database and loaded this into the staging environment... This procedure normally happens automatically once every 24 hours (at 01:00 UTC), but they wanted a more up to date copy of the database.\""
+    },
+    {
+      "factor": "Database secondary and failover setup was not designed to protect against accidental deletion or support rapid recovery, with replication treated as the main recovery path",
+      "evidence": "\"Replication between PostgreSQL hosts, primarily used for failover purposes and not for disaster recovery.\""
+    }
+  ]
+}

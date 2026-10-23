@@ -389,18 +389,19 @@ def print_summary(timeline, factors, actions, review):
     print()
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Incident retrospective agent")
-    parser.add_argument("input_file", nargs="?", default=DEFAULT_INPUT,
-                        help=f"incident text file (default: {DEFAULT_INPUT})")
-    args = parser.parse_args()
+def run_agent(input_path, output_dir=None):
+    """Run steps 1-4 on one incident file and save step1-4.json.
 
-    with open(args.input_file, encoding="utf-8") as f:
+    output_dir defaults to outputs/<input file name without extension>/.
+    Returns the four step results.
+    """
+    with open(input_path, encoding="utf-8") as f:
         incident_text = f.read()
 
-    # outputs/<input file name without extension>/
-    name = os.path.splitext(os.path.basename(args.input_file))[0]
-    out_folder = os.path.join("outputs", name)
+    if output_dir is None:
+        name = os.path.splitext(os.path.basename(input_path))[0]
+        output_dir = os.path.join("outputs", name)
+    out_folder = output_dir
     os.makedirs(out_folder, exist_ok=True)
 
     print("Step 1: extracting timeline...")
@@ -420,6 +421,16 @@ def main():
     save_json(review, out_folder, "step4.json")
 
     print_summary(timeline, factors, actions, review)
+    return {"timeline": timeline, "factors": factors,
+            "actions": actions, "review": review}
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Incident retrospective agent")
+    parser.add_argument("input_file", nargs="?", default=DEFAULT_INPUT,
+                        help=f"incident text file (default: {DEFAULT_INPUT})")
+    args = parser.parse_args()
+    run_agent(args.input_file)
 
 
 if __name__ == "__main__":

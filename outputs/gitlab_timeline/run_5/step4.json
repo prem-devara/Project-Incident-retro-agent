@@ -1,0 +1,235 @@
+{
+  "factor_verdicts": [
+    {
+      "id": 1,
+      "verdict": "keep",
+      "reason": "The report states the single primary carries all load and is a single point of failure, with prior incidents from the same design; this contributed to the load problems."
+    },
+    {
+      "id": 2,
+      "verdict": "keep",
+      "reason": "The load spike caused replication lag and WAL removal, triggering the re-sync that started the incident; the report supports this directly, with the cause of the spike appropriately hedged.",
+      "new_wording": "Sudden database load spike (suspected spam plus an accidentally scheduled background data-removal job triggered by an abuse flag) caused replication lag and WAL segments to be removed before the secondary could consume them"
+    },
+    {
+      "id": 3,
+      "verdict": "keep",
+      "reason": "The report explicitly states that lack of WAL archiving forced a manual re-synchronisation, which led to the destructive operations."
+    },
+    {
+      "id": 4,
+      "verdict": "keep",
+      "reason": "The report states the silent-wait behaviour was undocumented in runbooks and upstream docs, which led to troubleshooting churn and the wrong-host wipe attempt.",
+      "new_wording": "Undocumented pg_basebackup behaviour (it waits silently for the primary to start replication) and a lack of shared operational knowledge in runbooks led to prolonged troubleshooting and misdiagnosis"
+    },
+    {
+      "id": 5,
+      "verdict": "keep",
+      "reason": "The report shows the max_connections=8000 setting blocked the PostgreSQL restart needed for the max_wal_senders change and had gone unnoticed for almost a year.",
+      "new_wording": "An overly high max_connections setting (8000), applied almost a year earlier and never reviewed, prevented PostgreSQL from restarting when max_wal_senders was raised and delayed re-synchronisation"
+    },
+    {
+      "id": 6,
+      "verdict": "keep",
+      "reason": "The report states data was wiped on the primary instead of the secondary, and no safeguard prevented it; the wording 'under pressure' is mildly speculative, so it is reframed around the missing safeguard.",
+      "new_wording": "No safeguards distinguished the primary from the secondary when running destructive commands, so a data directory wipe intended for the secondary was executed on the primary"
+    },
+    {
+      "id": 7,
+      "verdict": "keep",
+      "reason": "The report shows pg_dump 9.2 against PostgreSQL 9.6 failed every run, leaving the S3 bucket empty."
+    },
+    {
+      "id": 8,
+      "verdict": "keep",
+      "reason": "The report shows failure emails were rejected due to DMARC, so backup failures went unnoticed.",
+      "new_wording": "Backup failures went undetected because cron failure notification emails were rejected by the receiving mail system (DMARC not configured for them), and there was no independent alert on missing backups"
+    },
+    {
+      "id": 9,
+      "verdict": "merge with #7",
+      "reason": "Not a separate cause: the failure to find and use backups is a direct consequence of the broken backup procedure in #7; the evidence does not say recovery was never tested."
+    },
+    {
+      "id": 10,
+      "verdict": "keep",
+      "reason": "The report shows snapshots were not enabled for database servers and cross-account restores can take over a week, narrowing recovery options."
+    },
+    {
+      "id": 11,
+      "verdict": "keep",
+      "reason": "The report states slow non-premium staging disks were the main bottleneck and the copy took about 18 hours."
+    },
+    {
+      "id": 12,
+      "verdict": "keep",
+      "reason": "The report shows only two LVM snapshots existed, neither designed for disaster recovery, so recovery was limited to a point about 6 hours before the outage, causing data loss."
+    },
+    {
+      "id": 13,
+      "verdict": "remove",
+      "reason": "The manually taken snapshot actually limited data loss (6 hours instead of about 24); the claim of increased load and risk is not supported by the report."
+    },
+    {
+      "id": 14,
+      "verdict": "remove",
+      "reason": "The dashboard overload affected user-facing visibility only; the report says internal monitoring was unaffected, and it did not contribute to the failure or slow recovery."
+    }
+  ],
+  "factors": [
+    {
+      "factor": "Single primary database with a single secondary, making the primary a single point of failure and forcing all load onto one database",
+      "evidence": "\"GitLab.com currently uses a single primary and a single secondary in hot-standby mode... In this setup a single database has to handle all the load, which is not ideal.\""
+    },
+    {
+      "factor": "Sudden database load spike (suspected spam plus an accidentally scheduled background data-removal job triggered by an abuse flag) caused replication lag and WAL segments to be removed before the secondary could consume them",
+      "evidence": "\"GitLab.com starts experiencing an increase in database load due to what we suspect was spam... part of the load was caused by a background job trying to remove a GitLab employee and their associated data.\" and \"The replication failed as WAL segments needed by the secondary were already removed from the primary.\""
+    },
+    {
+      "factor": "No WAL archiving, so the secondary could not catch up and had to be manually re-synchronised",
+      "evidence": "\"As GitLab.com was not using WAL archiving, the secondary had to be re-synchronised manually.\""
+    },
+    {
+      "factor": "Undocumented pg_basebackup behaviour (it waits silently for the primary to start replication) and a lack of shared operational knowledge in runbooks led to prolonged troubleshooting and misdiagnosis",
+      "evidence": "\"pg_basebackup will wait for the primary to start sending over replication data and it will sit and wait silently until that time. Unfortunately this was not clearly documented in our engineering runbooks nor in the official pg_basebackup document.\""
+    },
+    {
+      "factor": "An overly high max_connections setting (8000), applied almost a year earlier and never reviewed, prevented PostgreSQL from restarting when max_wal_senders was raised and delayed re-synchronisation",
+      "evidence": "\"In our case this was set to 8000. Such a value is way too high, yet it had been applied almost a year ago and was working fine until that point.\""
+    },
+    {
+      "factor": "No safeguards distinguished the primary from the secondary when running destructive commands, so a data directory wipe intended for the secondary was executed on the primary",
+      "evidence": "\"an engineer proceeds to wipe the PostgreSQL database directory, errantly thinking they were doing so on the secondary. Unfortunately this process was executed on the primary instead.\""
+    },
+    {
+      "factor": "Backup procedure silently broken: pg_dump 9.2 used against PostgreSQL 9.6, so no usable backups existed",
+      "evidence": "\"the backup procedure was using pg_dump 9.2, while our database is running PostgreSQL 9.6... A difference in major versions results in pg_dump producing an error, terminating the backup procedure.\" | \"Hoping they could restore the database the engineers involved went to look for the database backups, and asked for help on Slack. Unfortunately the process of both finding and using backups failed completely.\""
+    },
+    {
+      "factor": "Backup failures went undetected because cron failure notification emails were rejected by the receiving mail system (DMARC not configured for them), and there was no independent alert on missing backups",
+      "evidence": "\"Unfortunately DMARC was not enabled for the cronjob emails, resulting in them being rejected by the receiver. This means we were never aware of the backups failing, until it was too late.\""
+    },
+    {
+      "factor": "Azure disk snapshots not enabled for database servers, and cross-account snapshot restore is very slow, limiting recovery options",
+      "evidence": "\"these snapshots were not enabled for any of the database servers as we assumed that our other backup procedures were sufficient enough.\" and \"in one such case it took over a week to restore a snapshot.\""
+    },
+    {
+      "factor": "Slow, low-performance staging storage (no premium storage) made data copying the main recovery bottleneck",
+      "evidence": "\"For our staging environment we were using Azure classic, without Premium Storage... the disks are very slow, resulting in them being the main bottleneck in the restoration process.\" and \"Copying the data from the staging to the production host took around 18 hours.\""
+    },
+    {
+      "factor": "Recovery point limited to a stale LVM snapshot, not designed for disaster recovery, increasing data loss",
+      "evidence": "\"The LVM snapshots are primarily used to easily copy data from our production environment to our staging environment... the produced snapshots are not really meant to be used for disaster recovery.\""
+    }
+  ],
+  "action_items": [
+    {
+      "action": "Enable WAL archiving (continuous archiving to object storage) on the production PostgreSQL primary so replicas can catch up after lag without a full manual re-synchronisation.",
+      "owner_role": "Database team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Fix the pg_dump backup job to use the PostgreSQL client binaries matching the production server version, and add an automated check that fails if the backup is missing, empty, or older than 24 hours.",
+      "owner_role": "Infrastructure team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Configure cron job failure notifications to comply with DMARC and add a dead-man's-switch alert that fires when an expected successful backup has not been recorded.",
+      "owner_role": "Infrastructure team",
+      "type": "detect",
+      "priority": "high"
+    },
+    {
+      "action": "Add safeguards to destructive data directory operations, such as host-identity checks, confirmation prompts, and read-only mounts or role-based restrictions, so that wiping a data directory on the primary is not possible by accident.",
+      "owner_role": "Database team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Schedule and document regular restore drills from pg_dump and other backup sources, including timed measurements of restore duration, to verify that recovery procedures work before they are needed.",
+      "owner_role": "Infrastructure team",
+      "type": "detect",
+      "priority": "high"
+    },
+    {
+      "action": "Enable Azure disk snapshots for all database servers and evaluate faster cross-account or same-account restore options to reduce restore times that currently can take over a week.",
+      "owner_role": "Infrastructure team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Document pg_basebackup's silent wait-for-primary behaviour in the engineering runbooks and add a timeout and progress indicator to the replica rebuild procedure.",
+      "owner_role": "Database team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Audit PostgreSQL configuration parameters across all servers, correcting unreasonable values such as max_connections set to 8000, and add config validation to catch such settings.",
+      "owner_role": "Database team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Move staging database storage to premium/SSD-backed disks or an equivalent faster option so that restores and data copies are not bottlenecked by slow disks.",
+      "owner_role": "Infrastructure team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Establish a separate, dedicated disaster-recovery backup path rather than relying on staging LVM snapshots, and set a defined recovery point objective for production data.",
+      "owner_role": "Infrastructure team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Add a database read/write load-balancing and capacity plan, reducing dependence on a single primary, and review background jobs (such as user data removal) to rate-limit or batch heavy deletions.",
+      "owner_role": "Database team",
+      "type": "prevent",
+      "priority": "medium"
+    }
+  ],
+  "changes": [
+    {
+      "change": "Reworded #2: Sudden database load spike (suspected spam plus an accidentally scheduled background data-removal job triggered by an abuse flag) caused replication lag and WAL segments to be removed before the secondary could consume them",
+      "reason": "The load spike caused replication lag and WAL removal, triggering the re-sync that started the incident; the report supports this directly, with the cause of the spike appropriately hedged."
+    },
+    {
+      "change": "Reworded #4: Undocumented pg_basebackup behaviour (it waits silently for the primary to start replication) and a lack of shared operational knowledge in runbooks led to prolonged troubleshooting and misdiagnosis",
+      "reason": "The report states the silent-wait behaviour was undocumented in runbooks and upstream docs, which led to troubleshooting churn and the wrong-host wipe attempt."
+    },
+    {
+      "change": "Reworded #5: An overly high max_connections setting (8000), applied almost a year earlier and never reviewed, prevented PostgreSQL from restarting when max_wal_senders was raised and delayed re-synchronisation",
+      "reason": "The report shows the max_connections=8000 setting blocked the PostgreSQL restart needed for the max_wal_senders change and had gone unnoticed for almost a year."
+    },
+    {
+      "change": "Reworded #6: No safeguards distinguished the primary from the secondary when running destructive commands, so a data directory wipe intended for the secondary was executed on the primary",
+      "reason": "The report states data was wiped on the primary instead of the secondary, and no safeguard prevented it; the wording 'under pressure' is mildly speculative, so it is reframed around the missing safeguard."
+    },
+    {
+      "change": "Reworded #8: Backup failures went undetected because cron failure notification emails were rejected by the receiving mail system (DMARC not configured for them), and there was no independent alert on missing backups",
+      "reason": "The report shows failure emails were rejected due to DMARC, so backup failures went unnoticed."
+    },
+    {
+      "change": "Merged #9 into #7: Backup and recovery procedures were never tested, so the team could not quickly find and use restore sources",
+      "reason": "Not a separate cause: the failure to find and use backups is a direct consequence of the broken backup procedure in #7; the evidence does not say recovery was never tested."
+    },
+    {
+      "change": "Removed #13: Production work done in parallel with the incident and a staging snapshot copy created ad hoc outside the normal schedule, increasing load and risk during an already stressful period",
+      "reason": "The manually taken snapshot actually limited data loss (6 hours instead of about 24); the claim of increased load and risk is not supported by the report."
+    },
+    {
+      "change": "Removed #14: Communication and monitoring gaps: public status dashboard could not handle load during the outage",
+      "reason": "The dashboard overload affected user-facing visibility only; the report says internal monitoring was unaffected, and it did not contribute to the failure or slow recovery."
+    },
+    {
+      "change": "Removed the action item requiring a change-freeze or incident-coordination check before ad hoc snapshot copies during an incident.",
+      "reason": "It addressed removed factor #13; the manual snapshot actually reduced data loss, and the owner role 'On-call engineer' was an individual rather than a team."
+    },
+    {
+      "change": "Removed the action item to scale the public status dashboard for heavy traffic.",
+      "reason": "It addressed removed factor #14; the dashboard overload did not contribute to the failure or slow recovery."
+    }
+  ]
+}

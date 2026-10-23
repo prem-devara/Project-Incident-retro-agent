@@ -1,0 +1,56 @@
+{
+  "factors": [
+    {
+      "factor": "Single primary database with a single secondary, making the primary a single point of failure and forcing all load onto one database",
+      "evidence": "\"In this setup a single database has to handle all the load, which is not ideal.\" and \"db1.cluster.gitlab.com being a single point of failure.\""
+    },
+    {
+      "factor": "Replication was not backed by WAL archiving, so once the secondary fell behind, it could only be re-synchronised manually",
+      "evidence": "\"As GitLab.com was not using WAL archiving, the secondary had to be re-synchronised manually.\""
+    },
+    {
+      "factor": "Database load was not under control, causing replication lag and triggering the cascade of recovery work",
+      "evidence": "\"Due to the increased load, our PostgreSQL secondary's replication process started to lag behind.\""
+    },
+    {
+      "factor": "Unexpected background job (account removal) accidentally scheduled, adding unplanned load during the spam-driven incident",
+      "evidence": "\"part of the load was caused by a background job trying to remove a GitLab employee and their associated data... accidentally scheduled for removal.\""
+    },
+    {
+      "factor": "Inadequate and undocumented procedures for pg_basebackup behaviour, leading engineers to misdiagnose a normal waiting state as a fault",
+      "evidence": "\"this is normal behaviour: pg_basebackup will wait for the primary to start sending over replication data... this was not clearly documented in our engineering runbooks nor in the official pg_basebackup document.\""
+    },
+    {
+      "factor": "Configuration drift: max_connections set far too high and not reviewed, blocking PostgreSQL restart when max_wal_senders was raised",
+      "evidence": "\"Such a value is way too high, yet it had been applied almost a year ago and was working fine until that point.\""
+    },
+    {
+      "factor": "Lack of safeguards distinguishing primary from secondary during destructive operations, allowing the wrong host to be wiped",
+      "evidence": "\"an engineer proceeds to wipe the PostgreSQL database directory, errantly thinking they were doing so on the secondary. Unfortunately this process was executed on the primary instead.\""
+    },
+    {
+      "factor": "Backup verification and monitoring failure: pg_dump version mismatch caused silent backup failures, which were not detected",
+      "evidence": "\"the backup procedure was using pg_dump 9.2, while our database is running PostgreSQL 9.6\" and \"we were never aware of the backups failing, until it was too late.\""
+    },
+    {
+      "factor": "Alert notifications for failed cronjobs were sent via email without DMARC, so failure notices were rejected by the receiver",
+      "evidence": "\"DMARC was not enabled for the cronjob emails, resulting in them being rejected by the receiver.\""
+    },
+    {
+      "factor": "Disaster recovery relied on snapshots and backups not designed for recovery; Azure disk snapshots were not enabled for database servers and LVM snapshots were not meant for DR",
+      "evidence": "\"While enabled for the NFS servers, these snapshots were not enabled for any of the database servers as we assumed that our other backup procedures were sufficient enough.\" and \"the produced snapshots are not really meant to be used for disaster recovery.\""
+    },
+    {
+      "factor": "Staging environment used slow, cheap storage, making restoration bottlenecked by disk throughput",
+      "evidence": "\"For our staging environment we were using Azure classic, without Premium Storage... the disks are very slow, resulting in them being the main bottleneck in the restoration process.\""
+    },
+    {
+      "factor": "Ad hoc, out-of-schedule production snapshot loaded into staging, creating an unplanned copy and reducing the recovery options available",
+      "evidence": "\"This procedure normally happens automatically once every 24 hours (at 01:00 UTC), but they wanted a more up to date copy of the database.\""
+    },
+    {
+      "factor": "Recovery procedures were untested, so the team lacked a verified path to restore data quickly, and communication/coordination relied on ad hoc Slack requests",
+      "evidence": "\"Hoping they could restore the database the engineers involved went to look for the database backups, and asked for help on Slack. Unfortunately the process of both finding and using backups failed completely.\""
+    }
+  ]
+}

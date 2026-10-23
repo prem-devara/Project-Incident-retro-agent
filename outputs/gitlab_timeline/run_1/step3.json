@@ -1,0 +1,77 @@
+{
+  "impact_summary": "GitLab.com was unavailable or degraded for roughly 18 to 24 hours starting January 31st, with many users unable to post comments on issues and merge requests during the initial load spike. Around 300 GB of production database data was accidentally deleted, and database data created between January 31st 17:20 UTC and 23:30 UTC was lost, including an estimated 5000 projects, 5000 comments, and roughly 700 users. Git repositories and wikis were not affected, and self-managed and GitHost instances were not impacted.",
+  "action_items": [
+    {
+      "action": "Verify that pg_dump backups run against the correct PostgreSQL client version for the production cluster, and fail loudly if the version does not match the server",
+      "owner_role": "Database team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Add automated restore tests that regularly restore the latest backup into a scratch environment and validate row counts and integrity",
+      "owner_role": "Database team",
+      "type": "detect",
+      "priority": "high"
+    },
+    {
+      "action": "Enable DMARC alignment for cronjob and backup notification emails and add an independent alert when a scheduled backup has not produced a new artifact within its expected window",
+      "owner_role": "Infrastructure team",
+      "type": "detect",
+      "priority": "high"
+    },
+    {
+      "action": "Enable WAL archiving to object storage with point-in-time recovery so replicas can catch up without manual re-synchronisation",
+      "owner_role": "Database team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Add host-identity guardrails to destructive database operations such as data directory removal, including hostname confirmation prompts and role checks that refuse to run on a primary",
+      "owner_role": "Infrastructure team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Enable Azure disk snapshots for all database servers and document their restore time expectations for disaster recovery",
+      "owner_role": "Infrastructure team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Document pg_basebackup's silent wait behaviour and the replication slot and max_wal_senders requirements in the engineering runbooks",
+      "owner_role": "Database team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Review and correct unsafe production PostgreSQL settings such as max_connections, and audit other long-unchanged configuration values against documented safe ranges",
+      "owner_role": "Database team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Provision premium or faster storage for staging restore targets, or maintain a warm standby, so restoring from snapshot is not bound by throttled disk throughput",
+      "owner_role": "Infrastructure team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Add a read-replica or load distribution plan so the primary is not the single point of failure handling all database load",
+      "owner_role": "Database team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Require ad hoc LVM snapshots and staging data copies that touch production to be approved and scheduled outside periods of elevated production load",
+      "owner_role": "Infrastructure team",
+      "type": "prevent",
+      "priority": "low"
+    },
+    {
+      "action": "Harden spam-driven and background user-removal jobs so they rate-limit deletions and avoid hard-deleting large data sets in a single burst",
+      "owner_role": "Application backend team",
+      "type": "prevent",
+      "priority": "medium"
+    }
+  ]
+}

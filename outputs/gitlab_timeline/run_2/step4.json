@@ -1,0 +1,207 @@
+{
+  "factor_verdicts": [
+    {
+      "id": 1,
+      "verdict": "keep",
+      "reason": "The report states a single primary handled all load with the standby used only for failover, which is supported and contributed to the overload and replication lag.",
+      "new_wording": "Single-primary database architecture: one primary handled all production load while the standby served only failover, so load spikes on the primary directly caused replication lag and fragility."
+    },
+    {
+      "id": 2,
+      "verdict": "keep",
+      "reason": "Sustained high load (suspected spam plus a background removal job) is documented as the trigger of replication lag; the abuse-removal job issue (#12) is the same underlying load source and is merged here.",
+      "new_wording": "Sustained, unusually high database load, driven by suspected spam and by a background job that hard-deleted an account flagged for abuse, pushed replication behind. The abuse-handling workflow allowed flagged accounts to be accidentally scheduled for hard deletion, generating heavy background load."
+    },
+    {
+      "id": 3,
+      "verdict": "keep",
+      "reason": "The report explicitly says no WAL archiving meant the secondary had to be resynchronised manually after WAL segments were removed."
+    },
+    {
+      "id": 4,
+      "verdict": "keep",
+      "reason": "Report confirms the silent pg_basebackup wait behaviour was undocumented and led to confusion and further troubleshooting steps."
+    },
+    {
+      "id": 5,
+      "verdict": "keep",
+      "reason": "The destructive wipe ran on the primary because nothing in the procedure distinguished hosts; the system lacked safeguards, which is a process gap.",
+      "new_wording": "Unsafe operational procedures and tooling: nothing in the rebuild process confirmed whether a host was the primary or the secondary before a data directory was wiped, so a destructive command ran on the primary during high-pressure troubleshooting."
+    },
+    {
+      "id": 6,
+      "verdict": "keep",
+      "reason": "The report shows max_connections=8000 had been applied nearly a year earlier, went unvalidated, and blocked the PostgreSQL restart needed to proceed, slowing recovery."
+    },
+    {
+      "id": 7,
+      "verdict": "keep",
+      "reason": "The report shows the pg_dump 9.2 client mismatched the 9.6 server and backups failed, leaving the S3 bucket empty; this is directly evidenced."
+    },
+    {
+      "id": 8,
+      "verdict": "keep",
+      "reason": "The report states cronjob failure emails were rejected because DMARC was not enabled, so backup failures went unnoticed; distinct from #7 (silent detection gap vs the backup bug)."
+    },
+    {
+      "id": 9,
+      "verdict": "keep",
+      "reason": "The report states Azure snapshots were not enabled for database servers on an assumption, and LVM snapshots were not meant for disaster recovery, which removed recovery options."
+    },
+    {
+      "id": 10,
+      "verdict": "keep",
+      "reason": "The report states the slow, throttled staging disks were the bottleneck and the copy took about 18 hours."
+    },
+    {
+      "id": 11,
+      "verdict": "remove",
+      "reason": "The ad-hoc snapshot did not cause the failure and actually helped recovery by providing a copy only about 6 hours old, reducing data loss; the claim of extra production load is not supported by the report."
+    },
+    {
+      "id": 12,
+      "verdict": "merge with #2",
+      "reason": "The abuse-driven hard deletion job is the same underlying source of heavy database load described in #2."
+    }
+  ],
+  "factors": [
+    {
+      "factor": "Single-primary database architecture: one primary handled all production load while the standby served only failover, so load spikes on the primary directly caused replication lag and fragility.",
+      "evidence": "\"GitLab.com currently uses a single primary and a single secondary in hot-standby mode. The standby is only used for failover purposes. In this setup a single database has to handle all the load, which is not ideal.\""
+    },
+    {
+      "factor": "Sustained, unusually high database load, driven by suspected spam and by a background job that hard-deleted an account flagged for abuse, pushed replication behind. The abuse-handling workflow allowed flagged accounts to be accidentally scheduled for hard deletion, generating heavy background load.",
+      "evidence": "\"GitLab.com starts experiencing an increase in database load due to what we suspect was spam... We would later find out that part of the load was caused by a background job trying to remove a GitLab employee and their associated data.\" | \"This was the result of their account being flagged for abuse and accidentally scheduled for removal. More information regarding this particular problem can be found in the issue 'Removal of users by spam should not hard delete'.\""
+    },
+    {
+      "factor": "No WAL archiving, so once WAL segments were removed from the primary the secondary could only be resynchronised manually, forcing a full re-sync procedure under pressure.",
+      "evidence": "\"As GitLab.com was not using WAL archiving, the secondary had to be re-synchronised manually.\""
+    },
+    {
+      "factor": "Undocumented, counterintuitive tool behaviour: pg_basebackup silently waits for the primary and creates files in the data directory, and this was not captured in runbooks or official documentation, which led to confusion and a risky troubleshooting path.",
+      "evidence": "\"It would later be revealed by another engineer... that this is normal behaviour: pg_basebackup will wait for the primary to start sending over replication data and it will sit and wait silently until that time. Unfortunately this was not clearly documented in our engineering runbooks nor in the official pg_basebackup document.\""
+    },
+    {
+      "factor": "Unsafe operational procedures and tooling: nothing in the rebuild process confirmed whether a host was the primary or the secondary before a data directory was wiped, so a destructive command ran on the primary during high-pressure troubleshooting.",
+      "evidence": "\"Trying to restore the replication process, an engineer proceeds to wipe the PostgreSQL database directory, errantly thinking they were doing so on the secondary. Unfortunately this process was executed on the primary instead.\""
+    },
+    {
+      "factor": "Configuration drift and unvalidated settings: max_connections of 8000 had been applied long before and only surfaced as a failure when max_wal_senders was changed and PostgreSQL restarted.",
+      "evidence": "\"Such a value is way too high, yet it had been applied almost a year ago and was working fine until that point.\""
+    },
+    {
+      "factor": "Backup process was never verified: the pg_dump backup used a mismatched client version (9.2 vs PostgreSQL 9.6) and failed silently, so no restorable backup existed when needed.",
+      "evidence": "\"When we went to look for the pg_dump backups we found out they were not there. The S3 bucket was empty... the backup procedure was using pg_dump 9.2, while our database is running PostgreSQL 9.6\""
+    },
+    {
+      "factor": "Failure alerting was ineffective: cronjob failure notifications were rejected because DMARC was not enabled, so backup failures went unnoticed for an extended period.",
+      "evidence": "\"Unfortunately DMARC was not enabled for the cronjob emails, resulting in them being rejected by the receiver. This means we were never aware of the backups failing, until it was too late.\""
+    },
+    {
+      "factor": "Disaster recovery assumptions were not validated: Azure disk snapshots were disabled for database servers on the assumption that other backups were sufficient, and LVM snapshots were not designed for disaster recovery.",
+      "evidence": "\"While enabled for the NFS servers, these snapshots were not enabled for any of the database servers as we assumed that our other backup procedures were sufficient enough.\" and \"the produced snapshots are not really meant to be used for disaster recovery.\""
+    },
+    {
+      "factor": "Slow recovery storage: restoration was bottlenecked by cheap, throttled staging disks chosen to save costs, extending recovery time by many hours.",
+      "evidence": "\"For our staging environment we were using Azure classic, without Premium Storage... Copying the data from the staging to the production host took around 18 hours.\""
+    }
+  ],
+  "action_items": [
+    {
+      "action": "Enable WAL archiving (continuous archiving to object storage) on the production PostgreSQL primary so that replicas can catch up after WAL segments are removed and point-in-time recovery is possible.",
+      "owner_role": "Database reliability team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Verify pg_dump backups by automatically restoring them into a scratch database on a schedule, and alert when restores fail or produce no output, using the pg_dump client version that matches the server major version.",
+      "owner_role": "Database reliability team",
+      "type": "detect",
+      "priority": "high"
+    },
+    {
+      "action": "Configure backup and cronjob failure notifications to use a delivery path that passes DMARC (or use a non-email alerting channel), and add alerts for missing or stale backup artifacts in S3.",
+      "owner_role": "Infrastructure team",
+      "type": "detect",
+      "priority": "high"
+    },
+    {
+      "action": "Enable managed disk snapshots and tested cross-region backups for all database servers, and document the expected restore time for each backup type.",
+      "owner_role": "Infrastructure team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Add a safeguard to destructive data-directory operations (such as a required host-role check that confirms the host is a replica and not the primary, or a confirmation step) and encode it in the replication rebuild runbook.",
+      "owner_role": "Database reliability team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Document in the engineering runbooks and internal tooling docs that pg_basebackup waits silently for the primary to begin streaming and may create files in the target directory, and add expected-output guidance for each step.",
+      "owner_role": "Database reliability team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Split read load across multiple replicas (e.g. evaluate pgpool-II or application-level read routing) so that a single primary is not the only node handling all production load.",
+      "owner_role": "Database reliability team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Audit PostgreSQL configuration against the host's resources and add config validation in deployment tooling (e.g. max_connections and related semaphore-dependent settings) so unsafe values are caught before a restart.",
+      "owner_role": "Infrastructure team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Change the abuse-handling workflow so accounts flagged for abuse are soft-locked and cannot be hard-deleted by background jobs without a review step, and rate-limit account-removal jobs.",
+      "owner_role": "Trust and safety engineering team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Upgrade staging restore storage to premium or equivalent high-throughput disks so that restoring from a snapshot or backup can be completed within the target recovery time.",
+      "owner_role": "Infrastructure team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Write a disaster recovery runbook covering restore from each backup type and assign a team to coordinate communications during restores, then run a timed restore drill at least quarterly and record the measured restore time for each backup type.",
+      "owner_role": "Site reliability engineering team",
+      "type": "mitigate",
+      "priority": "medium"
+    }
+  ],
+  "changes": [
+    {
+      "change": "Reworded #1: Single-primary database architecture: one primary handled all production load while the standby served only failover, so load spikes on the primary directly caused replication lag and fragility.",
+      "reason": "The report states a single primary handled all load with the standby used only for failover, which is supported and contributed to the overload and replication lag."
+    },
+    {
+      "change": "Reworded #2: Sustained, unusually high database load, driven by suspected spam and by a background job that hard-deleted an account flagged for abuse, pushed replication behind. The abuse-handling workflow allowed flagged accounts to be accidentally scheduled for hard deletion, generating heavy background load.",
+      "reason": "Sustained high load (suspected spam plus a background removal job) is documented as the trigger of replication lag; the abuse-removal job issue (#12) is the same underlying load source and is merged here."
+    },
+    {
+      "change": "Reworded #5: Unsafe operational procedures and tooling: nothing in the rebuild process confirmed whether a host was the primary or the secondary before a data directory was wiped, so a destructive command ran on the primary during high-pressure troubleshooting.",
+      "reason": "The destructive wipe ran on the primary because nothing in the procedure distinguished hosts; the system lacked safeguards, which is a process gap."
+    },
+    {
+      "change": "Removed #11: Staging environment was used for load testing and was populated from a production snapshot taken outside the normal schedule, introducing extra production-sensitive activity during an already loaded period.",
+      "reason": "The ad-hoc snapshot did not cause the failure and actually helped recovery by providing a copy only about 6 hours old, reducing data loss; the claim of extra production load is not supported by the report."
+    },
+    {
+      "change": "Merged #12 into #2: Abuse-handling workflow was unsafe: accounts flagged for abuse could be accidentally scheduled for hard deletion, generating heavy background load.",
+      "reason": "The abuse-driven hard deletion job is the same underlying source of heavy database load described in #2."
+    },
+    {
+      "change": "Removed the action item restricting ad-hoc production-derived LVM snapshots and requiring approval for production copies.",
+      "reason": "It only addressed factor #11, which was removed because the ad-hoc snapshot helped recovery rather than contributing to the failure."
+    },
+    {
+      "change": "Rewrote the disaster recovery runbook action to name specific deliverables (runbook per backup type, communications coordination owned by a team, quarterly drills with recorded restore times).",
+      "reason": "The original was vague about 'a defined owner' and not clearly verifiable; the rewrite makes completion verifiable and avoids implying individual ownership."
+    }
+  ]
+}

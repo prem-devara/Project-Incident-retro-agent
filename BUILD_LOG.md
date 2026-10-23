@@ -3,6 +3,9 @@
 
 Notes for the README. Raw, dated, in build order.
 
+## README highlights
+- An LLM judge can be lenient in ways prompt instructions don't fix. I caught it accepting a backwards cause by hand, so the judge needs human spot-checks and its own test.
+
 ## Setup
 - Built with Claude Code (VS Code) as the coding assistant; agent calls models through aisuite, so providers can be swapped.
 - Kept agent input (`data/`) and answer keys (`eval/`) in separate folders so the coding assistant could not see the answers while building.
@@ -40,6 +43,14 @@ Notes for the README. Raw, dated, in build order.
   - Mitigating action listed as a cause (the snapshot): did not appear in this draft, so the reviewer was not tested on it.
   - Speculation: appeared in a milder form. One factor claimed "stress" and "ambiguous host identity" without support; the reviewer removed those claims. A factor built on "asked for help on Slack" was merged into the backup factor rather than kept as a communication failure.
 
+## Automated eval (LLM-as-judge)
+- `evaluate.py` runs the full agent (Steps 1–4) 5 times, then a Sonnet judge (same settings as Step 4) labels each final factor: match / valid_extra / duplicate / wrong. Recall and precision are computed in code, not by the judge.
+- Recall: 0.96 → 1.00 (mean of 5 runs) after fixing the judge's wording-based matching. It had marked factors as "valid_extra" when they described the same mechanism as a key line in different words (e.g. "no WAL archiving, manual resync" vs "replication broke").
+- Precision: 1.00 on every run, according to the judge. My manual check found the judge accepted run 5 #11 (stale LVM snapshot "increasing data loss"), which is backwards: that snapshot limited data loss. My grading for run 5 is 10/11.
+- Adding an explicit "wrong" rule to the judge prompt (anything that reduced harm or enabled recovery, named as a cause, is wrong) did not fix this; the judge still labelled #11 valid_extra.
+- Lesson: the judge needs its own test. Plant known-wrong factors in a factor list and check that the judge catches them before trusting its precision numbers.
+- The Step 4 reviewer catches a mitigating action listed as a cause only sometimes: in run 5 it removed #13 (manual snapshot named as a risk) but kept #11 (stale LVM snapshot "increasing data loss").
+
 ## Pending
-- Confirm across several runs whether the reviewer catches a mitigating action listed as a cause.
+- Test the judge with planted wrong factors.
 - Automated eval (LLM-as-judge) across 10 postmortems.

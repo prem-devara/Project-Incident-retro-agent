@@ -1,0 +1,52 @@
+{
+  "factors": [
+    {
+      "factor": "Single point of failure in database architecture: a single primary handled all load, and the standby was used only for failover, so overload and replication lag on the primary cascaded into the incident.",
+      "evidence": "\"GitLab.com currently uses a single primary and a single secondary in hot-standby mode. The standby is only used for failover purposes. In this setup a single database has to handle all the load, which is not ideal.\""
+    },
+    {
+      "factor": "Sustained, unusually high database load (suspected spam and an accidental background account-removal job) pushed replication behind and made the system fragile.",
+      "evidence": "\"GitLab.com starts experiencing an increase in database load due to what we suspect was spam... We would later find out that part of the load was caused by a background job trying to remove a GitLab employee and their associated data.\""
+    },
+    {
+      "factor": "No WAL archiving, so once WAL segments were removed from the primary the secondary could only be resynchronised manually, forcing a full re-sync procedure under pressure.",
+      "evidence": "\"As GitLab.com was not using WAL archiving, the secondary had to be re-synchronised manually.\""
+    },
+    {
+      "factor": "Undocumented, counterintuitive tool behaviour: pg_basebackup silently waits for the primary and creates files in the data directory, and this was not captured in runbooks or official documentation, which led to confusion and a risky troubleshooting path.",
+      "evidence": "\"It would later be revealed by another engineer... that this is normal behaviour: pg_basebackup will wait for the primary to start sending over replication data and it will sit and wait silently until that time. Unfortunately this was not clearly documented in our engineering runbooks nor in the official pg_basebackup document.\""
+    },
+    {
+      "factor": "Unsafe operational tooling and procedures: no safeguard distinguished primary from secondary before wiping a data directory, so a destructive command ran on the wrong host during high-pressure troubleshooting.",
+      "evidence": "\"Trying to restore the replication process, an engineer proceeds to wipe the PostgreSQL database directory, errantly thinking they were doing so on the secondary. Unfortunately this process was executed on the primary instead.\""
+    },
+    {
+      "factor": "Configuration drift and unvalidated settings: max_connections of 8000 had been applied long before and only surfaced as a failure when max_wal_senders was changed and PostgreSQL restarted.",
+      "evidence": "\"Such a value is way too high, yet it had been applied almost a year ago and was working fine until that point.\""
+    },
+    {
+      "factor": "Backup process was never verified: the pg_dump backup used a mismatched client version (9.2 vs PostgreSQL 9.6) and failed silently, so no restorable backup existed when needed.",
+      "evidence": "\"When we went to look for the pg_dump backups we found out they were not there. The S3 bucket was empty... the backup procedure was using pg_dump 9.2, while our database is running PostgreSQL 9.6\""
+    },
+    {
+      "factor": "Failure alerting was ineffective: cronjob failure notifications were rejected because DMARC was not enabled, so backup failures went unnoticed for an extended period.",
+      "evidence": "\"Unfortunately DMARC was not enabled for the cronjob emails, resulting in them being rejected by the receiver. This means we were never aware of the backups failing, until it was too late.\""
+    },
+    {
+      "factor": "Disaster recovery assumptions were not validated: Azure disk snapshots were disabled for database servers on the assumption that other backups were sufficient, and LVM snapshots were not designed for disaster recovery.",
+      "evidence": "\"While enabled for the NFS servers, these snapshots were not enabled for any of the database servers as we assumed that our other backup procedures were sufficient enough.\" and \"the produced snapshots are not really meant to be used for disaster recovery.\""
+    },
+    {
+      "factor": "Slow recovery storage: restoration was bottlenecked by cheap, throttled staging disks chosen to save costs, extending recovery time by many hours.",
+      "evidence": "\"For our staging environment we were using Azure classic, without Premium Storage... Copying the data from the staging to the production host took around 18 hours.\""
+    },
+    {
+      "factor": "Staging environment was used for load testing and was populated from a production snapshot taken outside the normal schedule, introducing extra production-sensitive activity during an already loaded period.",
+      "evidence": "\"prior to starting this work, our engineer took an LVM snapshot of the production database and loaded this into the staging environment... This procedure normally happens automatically once every 24 hours (at 01:00 UTC), but they wanted a more up to date copy of the database.\""
+    },
+    {
+      "factor": "Abuse-handling workflow was unsafe: accounts flagged for abuse could be accidentally scheduled for hard deletion, generating heavy background load.",
+      "evidence": "\"This was the result of their account being flagged for abuse and accidentally scheduled for removal. More information regarding this particular problem can be found in the issue 'Removal of users by spam should not hard delete'.\""
+    }
+  ]
+}

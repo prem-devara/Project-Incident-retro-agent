@@ -3,7 +3,7 @@ CONTRIBUTING FACTORS
 - Replication broke and the replica fell too far behind to recover
 - Backups had been failing silently; failure alert emails were rejected
 - Disk snapshots were not enabled for the database servers
-- No one owned testing whether backups could actually be restored
+- No one owned testing whether backups could actually be restored (not in input)
 - An engineer deleted data on the production server instead of the replica
 
 

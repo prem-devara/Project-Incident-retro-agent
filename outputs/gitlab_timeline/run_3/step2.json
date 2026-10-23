@@ -1,0 +1,48 @@
+{
+  "factors": [
+    {
+      "factor": "Single primary database with a secondary used only for failover created a single point of failure and forced all load onto one database",
+      "evidence": "\"GitLab.com currently uses a single primary and a single secondary in hot-standby mode. The standby is only used for failover purposes. In this setup a single database has to handle all the load, which is not ideal.\""
+    },
+    {
+      "factor": "Replication lag and failure from unexpected load: WAL segments were removed before the secondary consumed them, and no WAL archiving was in place, requiring manual resynchronisation",
+      "evidence": "\"The replication failed as WAL segments needed by the secondary were already removed from the primary. As GitLab.com was not using WAL archiving, the secondary had to be re-synchronised manually.\""
+    },
+    {
+      "factor": "Insufficient or unclear documentation of pg_basebackup behaviour in runbooks and official docs, leading engineers to misinterpret a silent wait as a hang",
+      "evidence": "\"this was not clearly documented in our engineering runbooks nor in the official pg_basebackup document.\""
+    },
+    {
+      "factor": "Risky manual operations on production without safeguards to distinguish primary from secondary, resulting in the wrong host's data directory being wiped",
+      "evidence": "\"an engineer proceeds to wipe the PostgreSQL database directory, errantly thinking they were doing so on the secondary. Unfortunately this process was executed on the primary instead.\""
+    },
+    {
+      "factor": "Ad-hoc troubleshooting under pressure with compounding untested configuration changes (raising max_wal_senders, reducing max_connections) that were not validated beforehand",
+      "evidence": "\"To resolve this our engineers decided to temporarily increase max_wal_senders from the default value of 3 to 32. When applying the settings, PostgreSQL refused to restart... In our case this was set to 8000. Such a value is way too high, yet it had been applied almost a year ago and was working fine until that point.\""
+    },
+    {
+      "factor": "Backup procedure silently failed because pg_dump version mismatch was not detected, and cron failure notifications were rejected due to DMARC misconfiguration, so failures went unnoticed",
+      "evidence": "\"the backup procedure was using pg_dump 9.2, while our database is running PostgreSQL 9.6... This in turn resulted in pg_dump terminating with an error.\" and \"DMARC was not enabled for the cronjob emails, resulting in them being rejected by the receiver. This means we were never aware of the backups failing, until it was too late.\""
+    },
+    {
+      "factor": "Backup and recovery procedures were not regularly tested, so restore paths were broken or unknown when needed",
+      "evidence": "\"Hoping they could restore the database the engineers involved went to look for the database backups, and asked for help on Slack. Unfortunately the process of both finding and using backups failed completely.\""
+    },
+    {
+      "factor": "Disaster recovery reliance on snapshots not designed for DR and on slow, cheap storage, which prolonged recovery",
+      "evidence": "\"The LVM snapshots are primarily used to easily copy data from our production environment to our staging environment... the produced snapshots are not really meant to be used for disaster recovery.\" and \"the disks are very slow, resulting in them being the main bottleneck in the restoration process.\""
+    },
+    {
+      "factor": "Azure disk snapshots were not enabled for database servers, a gap in backup coverage based on an untested assumption",
+      "evidence": "\"While enabled for the NFS servers, these snapshots were not enabled for any of the database servers as we assumed that our other backup procedures were sufficient enough.\""
+    },
+    {
+      "factor": "Background job for deleting a falsely flagged account added significant database load during an already stressed period, and removal was hard delete without safeguards",
+      "evidence": "\"part of the load was caused by a background job trying to remove a GitLab employee and their associated data. This was the result of their account being flagged for abuse and accidentally scheduled for removal.\""
+    },
+    {
+      "factor": "Staging environment work (pgpool-II setup) and production snapshot handling introduced operational load and risk concurrent with the incident-prone period",
+      "evidence": "\"Prior to starting this work, the engineer takes an LVM snapshot of the production database and loads it into the staging environment to get a more up-to-date copy for load testing.\""
+    }
+  ]
+}

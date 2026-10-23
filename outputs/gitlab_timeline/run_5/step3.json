@@ -1,0 +1,83 @@
+{
+  "impact_summary": "On January 31st, GitLab.com experienced a severe database incident. Many users could not post comments on issues and merge requests for several hours during the initial load spike, and a production database deletion followed, removing roughly 300 GB of data written between 17:20 UTC and 23:30 UTC. At least 5000 projects, 5000 comments, and roughly 700 users were estimated lost. Recovery from a 6-hour-old LVM snapshot took until February 1st around 18:00 UTC, and only GitLab.com users were affected, not self-managed or GitHost instances.",
+  "action_items": [
+    {
+      "action": "Enable WAL archiving (continuous archiving to object storage) on the production PostgreSQL primary so replicas can catch up after lag without a full manual re-synchronisation.",
+      "owner_role": "Database team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Fix the pg_dump backup job to use the PostgreSQL client binaries matching the production server version, and add an automated check that fails if the backup is missing, empty, or older than 24 hours.",
+      "owner_role": "Infrastructure team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Configure cron job failure notifications to comply with DMARC and add a dead-man's-switch alert that fires when an expected successful backup has not been recorded.",
+      "owner_role": "Infrastructure team",
+      "type": "detect",
+      "priority": "high"
+    },
+    {
+      "action": "Add safeguards to destructive data directory operations, such as host-identity checks, confirmation prompts, and read-only mounts or role-based restrictions, so that wiping a data directory on the primary is not possible by accident.",
+      "owner_role": "Database team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Schedule and document regular restore drills from pg_dump and other backup sources, including timed measurements of restore duration, to verify that recovery procedures work before they are needed.",
+      "owner_role": "Infrastructure team",
+      "type": "detect",
+      "priority": "high"
+    },
+    {
+      "action": "Enable Azure disk snapshots for all database servers and evaluate faster cross-account or same-account restore options to reduce restore times that currently can take over a week.",
+      "owner_role": "Infrastructure team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Document pg_basebackup's silent wait-for-primary behaviour in the engineering runbooks and add a timeout and progress indicator to the replica rebuild procedure.",
+      "owner_role": "Database team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Audit PostgreSQL configuration parameters across all servers, correcting unreasonable values such as max_connections set to 8000, and add config validation to catch such settings.",
+      "owner_role": "Database team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Move staging database storage to premium/SSD-backed disks or an equivalent faster option so that restores and data copies are not bottlenecked by slow disks.",
+      "owner_role": "Infrastructure team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Establish a separate, dedicated disaster-recovery backup path rather than relying on staging LVM snapshots, and set a defined recovery point objective for production data.",
+      "owner_role": "Infrastructure team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Add a database read/write load-balancing and capacity plan, reducing dependence on a single primary, and review background jobs (such as user data removal) to rate-limit or batch heavy deletions.",
+      "owner_role": "Database team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Require a documented change-freeze or incident-coordination check before ad hoc production-related work such as unscheduled snapshot copies is performed during an active incident.",
+      "owner_role": "On-call engineer",
+      "type": "prevent",
+      "priority": "low"
+    },
+    {
+      "action": "Scale the public status dashboard so it remains available under heavy traffic during an outage, for example by hosting it on a static or CDN-backed endpoint.",
+      "owner_role": "Infrastructure team",
+      "type": "mitigate",
+      "priority": "low"
+    }
+  ]
+}

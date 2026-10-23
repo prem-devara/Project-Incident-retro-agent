@@ -1,0 +1,524 @@
+{
+  "input_file": "data/gitlab_timeline.txt",
+  "answer_key": "eval/gitlab_answer_key.txt",
+  "judge_model": "anthropic:claude-sonnet-5-5",
+  "rescored": true,
+  "key_factors": [
+    {
+      "id": 1,
+      "text": "Spam traffic and a background job overloaded the primary database",
+      "excluded": false
+    },
+    {
+      "id": 2,
+      "text": "Replication broke and the replica fell too far behind to recover",
+      "excluded": false
+    },
+    {
+      "id": 3,
+      "text": "Backups had been failing silently; failure alert emails were rejected",
+      "excluded": false
+    },
+    {
+      "id": 4,
+      "text": "Disk snapshots were not enabled for the database servers",
+      "excluded": false
+    },
+    {
+      "id": 5,
+      "text": "No one owned testing whether backups could actually be restored",
+      "excluded": true
+    },
+    {
+      "id": 6,
+      "text": "An engineer deleted data on the production server instead of the replica",
+      "excluded": false
+    }
+  ],
+  "runs": [
+    {
+      "run": 1,
+      "labels": [
+        {
+          "id": 1,
+          "factor": "Single-primary database architecture in which a standby is used only for failover, so one database handles all load and acts as a single point of failure; failover replication was also not designed for rapid recovery or protection against accidental data deletion (merged from #13).",
+          "label": "valid_extra",
+          "reason": "The report states the single-primary, failover-only standby architecture was a single point of failure that left all load on one database, which is supported but not a distinct key factor."
+        },
+        {
+          "id": 2,
+          "factor": "A sustained increase in database load (suspected spam plus a background job removing a flagged account and its data) caused the secondary's replication to lag and fail.",
+          "label": "match",
+          "reason": "Describes the spam-plus-background-job load surge on the primary, matching K1, and the resulting replication lag also touches K2.",
+          "key_id": 1,
+          "key_text": "Spam traffic and a background job overloaded the primary database",
+          "key_excluded": false
+        },
+        {
+          "id": 3,
+          "factor": "No WAL archiving, so the secondary could not catch up after WAL segments were removed and had to be manually re-synchronised",
+          "label": "match",
+          "reason": "Replication failed because needed WAL segments were removed and no WAL archiving existed, so the secondary could not recover on its own, matching K2.",
+          "key_id": 2,
+          "key_text": "Replication broke and the replica fell too far behind to recover",
+          "key_excluded": false
+        },
+        {
+          "id": 4,
+          "factor": "Insufficient documentation of pg_basebackup behaviour in runbooks and official docs, leading to confusion and misdiagnosis of the hang",
+          "label": "valid_extra",
+          "reason": "The report says pg_basebackup's silent waiting behavior was undocumented, causing confusion that led to the further wipe attempt and slowed recovery."
+        },
+        {
+          "id": 5,
+          "factor": "Manual, high-risk operations were performed during an incident with no safeguards (such as host-identity checks) to distinguish primary from secondary, so a destructive data directory removal ran on the primary by mistake.",
+          "label": "match",
+          "reason": "The destructive directory removal was run on the primary instead of the secondary, matching K6.",
+          "key_id": 6,
+          "key_text": "An engineer deleted data on the production server instead of the replica",
+          "key_excluded": false
+        },
+        {
+          "id": 6,
+          "factor": "Backup procedure silently broken: pg_dump version mismatch with PostgreSQL 9.6 caused every backup to fail without anyone noticing",
+          "label": "match",
+          "reason": "pg_dump version mismatch made backups fail silently, which is part of K3's silently failing backups.",
+          "key_id": 3,
+          "key_text": "Backups had been failing silently; failure alert emails were rejected",
+          "key_excluded": false
+        },
+        {
+          "id": 7,
+          "factor": "Failure notifications for backup cronjobs were not delivered because DMARC was not enabled for cronjob emails, so the failure went unnoticed",
+          "label": "match",
+          "reason": "Failure alert emails were rejected due to DMARC, directly matching the failure-notification part of K3.",
+          "key_id": 3,
+          "key_text": "Backups had been failing silently; failure alert emails were rejected",
+          "key_excluded": false
+        },
+        {
+          "id": 8,
+          "factor": "Backups were not monitored or regularly verified for existence and restorability, so the lack of any usable backup was discovered only during the incident.",
+          "label": "match",
+          "reason": "Lack of monitoring or verification of backup restorability matches K5's missing ownership of restore testing.",
+          "key_id": 5,
+          "key_text": "No one owned testing whether backups could actually be restored",
+          "key_excluded": true
+        },
+        {
+          "id": 9,
+          "factor": "Disaster recovery relied on snapshots not designed for DR, and Azure disk snapshots were not enabled for database servers, leaving only LVM snapshots with a large potential data loss window",
+          "label": "match",
+          "reason": "Azure disk snapshots were not enabled for the database servers, matching K4.",
+          "key_id": 4,
+          "key_text": "Disk snapshots were not enabled for the database servers",
+          "key_excluded": false
+        },
+        {
+          "id": 10,
+          "factor": "Slow staging storage (throttled network disks) made restoration from snapshot a bottleneck, extending the outage by many hours",
+          "label": "valid_extra",
+          "reason": "The report says slow throttled staging disks were the restoration bottleneck, causing an 18-hour copy that extended the outage."
+        },
+        {
+          "id": 11,
+          "factor": "Production configuration left unchanged for a long time (max_connections of 8000) that was unsafe and only surfaced when settings were changed under pressure",
+          "label": "valid_extra",
+          "reason": "The excessive max_connections=8000 setting blocked the PostgreSQL restart during troubleshooting, adding delay as the report describes."
+        }
+      ],
+      "counts": {
+        "match": 7,
+        "valid_extra": 4,
+        "duplicate": 0,
+        "wrong": 0
+      },
+      "total_factors": 11,
+      "recall": 1.0,
+      "precision": 1.0,
+      "missed_key_factors": []
+    },
+    {
+      "run": 2,
+      "labels": [
+        {
+          "id": 1,
+          "factor": "Single-primary database architecture: one primary handled all production load while the standby served only failover, so load spikes on the primary directly caused replication lag and fragility.",
+          "label": "valid_extra",
+          "reason": "The report describes db1 as a single point of failure handling all load with a standby used only for failover, which contributed to fragility but is not an answer-key factor."
+        },
+        {
+          "id": 2,
+          "factor": "Sustained, unusually high database load, driven by suspected spam and by a background job that hard-deleted an account flagged for abuse, pushed replication behind. The abuse-handling workflow allowed flagged accounts to be accidentally scheduled for hard deletion, generating heavy background load.",
+          "label": "match",
+          "reason": "Spam-driven load plus a background job removing an account overloaded the primary database, matching K1.",
+          "key_id": 1,
+          "key_text": "Spam traffic and a background job overloaded the primary database",
+          "key_excluded": false
+        },
+        {
+          "id": 3,
+          "factor": "No WAL archiving, so once WAL segments were removed from the primary the secondary could only be resynchronised manually, forcing a full re-sync procedure under pressure.",
+          "label": "match",
+          "reason": "Replication lagged and failed because WAL segments were removed from the primary, requiring manual resync, matching K2.",
+          "key_id": 2,
+          "key_text": "Replication broke and the replica fell too far behind to recover",
+          "key_excluded": false
+        },
+        {
+          "id": 4,
+          "factor": "Undocumented, counterintuitive tool behaviour: pg_basebackup silently waits for the primary and creates files in the data directory, and this was not captured in runbooks or official documentation, which led to confusion and a risky troubleshooting path.",
+          "label": "valid_extra",
+          "reason": "The report states pg_basebackup's silent waiting was undocumented, which caused confusion and led to the wipe attempt, though it is not in the key."
+        },
+        {
+          "id": 5,
+          "factor": "Unsafe operational procedures and tooling: nothing in the rebuild process confirmed whether a host was the primary or the secondary before a data directory was wiped, so a destructive command ran on the primary during high-pressure troubleshooting.",
+          "label": "match",
+          "reason": "An engineer wiped the data directory on the primary believing it was the secondary, matching K6.",
+          "key_id": 6,
+          "key_text": "An engineer deleted data on the production server instead of the replica",
+          "key_excluded": false
+        },
+        {
+          "id": 6,
+          "factor": "Configuration drift and unvalidated settings: max_connections of 8000 had been applied long before and only surfaced as a failure when max_wal_senders was changed and PostgreSQL restarted.",
+          "label": "valid_extra",
+          "reason": "The report shows max_connections=8000 blocked the PostgreSQL restart and delayed troubleshooting, a supported but non-key factor."
+        },
+        {
+          "id": 7,
+          "factor": "Backup process was never verified: the pg_dump backup used a mismatched client version (9.2 vs PostgreSQL 9.6) and failed silently, so no restorable backup existed when needed.",
+          "label": "match",
+          "reason": "Backups were never verified and pg_dump failed from a version mismatch, so no restorable backup existed; this fits the unowned backup-verification factor K5 (the silent failure itself is K3).",
+          "key_id": 5,
+          "key_text": "No one owned testing whether backups could actually be restored",
+          "key_excluded": true
+        },
+        {
+          "id": 8,
+          "factor": "Failure alerting was ineffective: cronjob failure notifications were rejected because DMARC was not enabled, so backup failures went unnoticed for an extended period.",
+          "label": "match",
+          "reason": "Cronjob failure emails were rejected due to DMARC, so backup failures went unnoticed, matching K3.",
+          "key_id": 3,
+          "key_text": "Backups had been failing silently; failure alert emails were rejected",
+          "key_excluded": false
+        },
+        {
+          "id": 9,
+          "factor": "Disaster recovery assumptions were not validated: Azure disk snapshots were disabled for database servers on the assumption that other backups were sufficient, and LVM snapshots were not designed for disaster recovery.",
+          "label": "match",
+          "reason": "Azure disk snapshots were not enabled for the database servers on the assumption other backups sufficed, matching K4.",
+          "key_id": 4,
+          "key_text": "Disk snapshots were not enabled for the database servers",
+          "key_excluded": false
+        },
+        {
+          "id": 10,
+          "factor": "Slow recovery storage: restoration was bottlenecked by cheap, throttled staging disks chosen to save costs, extending recovery time by many hours.",
+          "label": "valid_extra",
+          "reason": "The report states slow, throttled staging disks made the 18-hour copy the bottleneck, which slowed recovery though it is not in the key."
+        }
+      ],
+      "counts": {
+        "match": 6,
+        "valid_extra": 4,
+        "duplicate": 0,
+        "wrong": 0
+      },
+      "total_factors": 10,
+      "recall": 1.0,
+      "precision": 1.0,
+      "missed_key_factors": []
+    },
+    {
+      "run": 3,
+      "labels": [
+        {
+          "id": 1,
+          "factor": "Single primary database with a failover-only secondary meant one database handled all load and was a single point of failure, with no load distribution across hosts",
+          "label": "valid_extra",
+          "reason": "The report explicitly describes the single primary as a single point of failure handling all load, which is a supported structural contributor not captured in the key."
+        },
+        {
+          "id": 2,
+          "factor": "Replication lag and failure from unexpected load: WAL segments were removed before the secondary consumed them, and no WAL archiving was in place, requiring manual resynchronisation",
+          "label": "match",
+          "reason": "Replication lagged and failed because WAL segments were removed from the primary and there was no WAL archiving, matching the broken-replication factor.",
+          "key_id": 2,
+          "key_text": "Replication broke and the replica fell too far behind to recover",
+          "key_excluded": false
+        },
+        {
+          "id": 3,
+          "factor": "The runbooks and official documentation did not describe that pg_basebackup waits silently for the primary to begin streaming, so the expected behaviour was mistaken for a hang",
+          "label": "valid_extra",
+          "reason": "The report states pg_basebackup's silent waiting was undocumented and mistaken for a hang, which prolonged troubleshooting and led to further wipes."
+        },
+        {
+          "id": 4,
+          "factor": "Manual destructive operations on production had no safeguards (such as host/role verification or confirmation) to distinguish primary from secondary, so a data directory was removed on the primary instead of the secondary",
+          "label": "match",
+          "reason": "An engineer wiped the data directory on the primary instead of the secondary, matching the deletion-on-production factor.",
+          "key_id": 6,
+          "key_text": "An engineer deleted data on the production server instead of the replica",
+          "key_excluded": false
+        },
+        {
+          "id": 5,
+          "factor": "Troubleshooting under time pressure involved untested production configuration changes (raising max_wal_senders), which exposed an unreviewed max_connections value of 8000 and caused a restart failure",
+          "label": "valid_extra",
+          "reason": "The report describes the max_wal_senders change exposing max_connections=8000 and causing a restart failure, which added delay during troubleshooting."
+        },
+        {
+          "id": 6,
+          "factor": "Backup procedure silently failed because pg_dump version mismatch was not detected, and cron failure notifications were rejected due to DMARC misconfiguration, so failures went unnoticed",
+          "label": "match",
+          "reason": "Backups failed silently due to pg_dump version mismatch and the failure emails were rejected because of DMARC, matching the silent-backup-failure factor.",
+          "key_id": 3,
+          "key_text": "Backups had been failing silently; failure alert emails were rejected",
+          "key_excluded": false
+        },
+        {
+          "id": 7,
+          "factor": "Disaster recovery reliance on snapshots not designed for DR and on slow, cheap storage, which prolonged recovery",
+          "label": "valid_extra",
+          "reason": "The report says LVM snapshots weren't meant for DR and slow staging disks caused an 18-hour copy bottleneck, prolonging recovery."
+        },
+        {
+          "id": 8,
+          "factor": "Azure disk snapshots were not enabled for database servers because other backup procedures were assumed to be sufficient, leaving a gap in backup coverage",
+          "label": "match",
+          "reason": "Azure disk snapshots were not enabled for database servers because other backups were assumed sufficient, matching the snapshot-not-enabled factor.",
+          "key_id": 4,
+          "key_text": "Disk snapshots were not enabled for the database servers",
+          "key_excluded": false
+        },
+        {
+          "id": 9,
+          "factor": "A background job deleting a falsely flagged account added database load during an already stressed period, and spam-based user removal used hard delete without safeguards",
+          "label": "match",
+          "reason": "A background job removing a flagged account added load to the database during the spam-driven overload, matching the overload factor.",
+          "key_id": 1,
+          "key_text": "Spam traffic and a background job overloaded the primary database",
+          "key_excluded": false
+        }
+      ],
+      "counts": {
+        "match": 5,
+        "valid_extra": 4,
+        "duplicate": 0,
+        "wrong": 0
+      },
+      "total_factors": 9,
+      "recall": 1.0,
+      "precision": 1.0,
+      "missed_key_factors": []
+    },
+    {
+      "run": 4,
+      "labels": [
+        {
+          "id": 1,
+          "factor": "Architecture with a single primary and a hot-standby secondary used only for failover: all load fell on one database, and the primary was a single point of failure with no usable alternative path during the incident.",
+          "label": "valid_extra",
+          "reason": "The report explicitly describes the single-primary architecture as a single point of failure carrying all load, which is supported but not a distinct key factor (K1 covers the specific spam/job overload)."
+        },
+        {
+          "id": 2,
+          "factor": "Replication was not backed by WAL archiving, so once the secondary fell behind, it could only be re-synchronised manually",
+          "label": "match",
+          "reason": "The replica fell behind, needed WAL segments were removed, and without WAL archiving it could not recover, which matches the replication-broke-beyond-recovery factor.",
+          "key_id": 2,
+          "key_text": "Replication broke and the replica fell too far behind to recover",
+          "key_excluded": false
+        },
+        {
+          "id": 3,
+          "factor": "A background job for a hard-delete account removal was accidentally scheduled after an abuse flag, adding unplanned load during the spam-driven load spike.",
+          "label": "match",
+          "reason": "The accidentally scheduled hard-delete background job added load during the spam spike, matching the overload cause in K1.",
+          "key_id": 1,
+          "key_text": "Spam traffic and a background job overloaded the primary database",
+          "key_excluded": false
+        },
+        {
+          "id": 4,
+          "factor": "Runbooks and upstream documentation did not describe that pg_basebackup silently waits before replication starts, so a normal waiting state was mistaken for a fault and re-sync troubleshooting was prolonged.",
+          "label": "valid_extra",
+          "reason": "The report states the silent wait of pg_basebackup was undocumented and led to confusion and prolonged troubleshooting, which contributed to the engineer's desperate actions."
+        },
+        {
+          "id": 5,
+          "factor": "max_connections had been set far too high (8000) and was never reviewed, which blocked a PostgreSQL restart when max_wal_senders was raised and delayed the re-sync.",
+          "label": "valid_extra",
+          "reason": "The report shows max_connections=8000 blocked the PostgreSQL restart when max_wal_senders was raised, delaying the re-sync."
+        },
+        {
+          "id": 6,
+          "factor": "No safeguards or host-role confirmation existed for destructive operations such as wiping a data directory, so it was possible to run the operation on the primary while believing it was the secondary.",
+          "label": "match",
+          "reason": "An engineer wiped the data directory on the primary while believing it was the secondary, matching the deletion-on-production factor.",
+          "key_id": 6,
+          "key_text": "An engineer deleted data on the production server instead of the replica",
+          "key_excluded": false
+        },
+        {
+          "id": 7,
+          "factor": "The backup job ran pg_dump 9.2 against PostgreSQL 9.6 (Omnibus defaulted to 9.2 on a non-database host), so every backup failed and no usable backups existed; this was not detected because failure notifications never arrived (see also the cronjob email/DMARC gap).",
+          "label": "match",
+          "reason": "Backups failed due to pg_dump version mismatch and failure emails were rejected for lack of DMARC, so the failures went unnoticed, matching K3.",
+          "key_id": 3,
+          "key_text": "Backups had been failing silently; failure alert emails were rejected",
+          "key_excluded": false
+        },
+        {
+          "id": 8,
+          "factor": "Disaster recovery relied on snapshots and backups not designed for recovery; Azure disk snapshots were not enabled for database servers and LVM snapshots were not meant for DR",
+          "label": "match",
+          "reason": "Azure disk snapshots were not enabled for the database servers, which is directly K4; the LVM-not-for-DR detail is extra but the core matches.",
+          "key_id": 4,
+          "key_text": "Disk snapshots were not enabled for the database servers",
+          "key_excluded": false
+        },
+        {
+          "id": 9,
+          "factor": "Staging environment used slow, cheap storage, making restoration bottlenecked by disk throughput",
+          "label": "valid_extra",
+          "reason": "The report says slow non-premium staging disks were the main bottleneck, with the copy taking about 18 hours, which prolonged recovery."
+        },
+        {
+          "id": 10,
+          "factor": "Recovery procedures were not tested or rehearsed, and there was no defined recovery path or coordination process, so locating and using backups failed and the team relied on ad hoc requests for help.",
+          "label": "match",
+          "reason": "Untested recovery procedures with no one verifying backups were restorable correspond to K5, as finding and using backups failed completely.",
+          "key_id": 5,
+          "key_text": "No one owned testing whether backups could actually be restored",
+          "key_excluded": true
+        }
+      ],
+      "counts": {
+        "match": 6,
+        "valid_extra": 4,
+        "duplicate": 0,
+        "wrong": 0
+      },
+      "total_factors": 10,
+      "recall": 1.0,
+      "precision": 1.0,
+      "missed_key_factors": []
+    },
+    {
+      "run": 5,
+      "labels": [
+        {
+          "id": 1,
+          "factor": "Single primary database with a single secondary, making the primary a single point of failure and forcing all load onto one database",
+          "label": "valid_extra",
+          "reason": "The report explicitly describes the single primary/secondary setup as a single point of failure handling all load, which is a supported contributing condition not in the key."
+        },
+        {
+          "id": 2,
+          "factor": "Sudden database load spike (suspected spam plus an accidentally scheduled background data-removal job triggered by an abuse flag) caused replication lag and WAL segments to be removed before the secondary could consume them",
+          "label": "match",
+          "reason": "Spam-driven load plus the abuse-flag background deletion job overloading the primary matches K1, with the resulting replication lag/WAL removal also touching K2.",
+          "key_id": 1,
+          "key_text": "Spam traffic and a background job overloaded the primary database",
+          "key_excluded": false
+        },
+        {
+          "id": 3,
+          "factor": "No WAL archiving, so the secondary could not catch up and had to be manually re-synchronised",
+          "label": "match",
+          "reason": "Replication failing because WAL segments were removed and no WAL archiving existed, forcing manual resync, matches K2.",
+          "key_id": 2,
+          "key_text": "Replication broke and the replica fell too far behind to recover",
+          "key_excluded": false
+        },
+        {
+          "id": 4,
+          "factor": "Undocumented pg_basebackup behaviour (it waits silently for the primary to start replication) and a lack of shared operational knowledge in runbooks led to prolonged troubleshooting and misdiagnosis",
+          "label": "valid_extra",
+          "reason": "The report states pg_basebackup's silent waiting was undocumented and led to confused troubleshooting, a supported factor that prolonged recovery of replication."
+        },
+        {
+          "id": 5,
+          "factor": "An overly high max_connections setting (8000), applied almost a year earlier and never reviewed, prevented PostgreSQL from restarting when max_wal_senders was raised and delayed re-synchronisation",
+          "label": "valid_extra",
+          "reason": "The report describes max_connections=8000 preventing PostgreSQL restart when max_wal_senders was raised, delaying resync."
+        },
+        {
+          "id": 6,
+          "factor": "No safeguards distinguished the primary from the secondary when running destructive commands, so a data directory wipe intended for the secondary was executed on the primary",
+          "label": "match",
+          "reason": "The wipe of the data directory executed on the primary instead of the secondary matches K6.",
+          "key_id": 6,
+          "key_text": "An engineer deleted data on the production server instead of the replica",
+          "key_excluded": false
+        },
+        {
+          "id": 7,
+          "factor": "Backup procedure silently broken: pg_dump 9.2 used against PostgreSQL 9.6, so no usable backups existed",
+          "label": "match",
+          "reason": "Backups silently failing due to the pg_dump version mismatch matches the silently failing backups in K3.",
+          "key_id": 3,
+          "key_text": "Backups had been failing silently; failure alert emails were rejected",
+          "key_excluded": false
+        },
+        {
+          "id": 8,
+          "factor": "Backup failures went undetected because cron failure notification emails were rejected by the receiving mail system (DMARC not configured for them), and there was no independent alert on missing backups",
+          "label": "match",
+          "reason": "Failure notification emails being rejected due to DMARC, hiding backup failures, matches K3 directly.",
+          "key_id": 3,
+          "key_text": "Backups had been failing silently; failure alert emails were rejected",
+          "key_excluded": false
+        },
+        {
+          "id": 9,
+          "factor": "Azure disk snapshots not enabled for database servers, and cross-account snapshot restore is very slow, limiting recovery options",
+          "label": "match",
+          "reason": "Azure disk snapshots not enabled for database servers matches K4.",
+          "key_id": 4,
+          "key_text": "Disk snapshots were not enabled for the database servers",
+          "key_excluded": false
+        },
+        {
+          "id": 10,
+          "factor": "Slow, low-performance staging storage (no premium storage) made data copying the main recovery bottleneck",
+          "label": "valid_extra",
+          "reason": "The report says slow non-premium staging disks were the main bottleneck in restoration, slowing recovery."
+        },
+        {
+          "id": 11,
+          "factor": "Recovery point limited to a stale LVM snapshot, not designed for disaster recovery, increasing data loss",
+          "label": "valid_extra",
+          "reason": "The report states the only available LVM snapshots were not meant for DR and were up to 6 hours old, which limited the recovery point and increased data loss."
+        }
+      ],
+      "counts": {
+        "match": 6,
+        "valid_extra": 5,
+        "duplicate": 0,
+        "wrong": 0
+      },
+      "total_factors": 11,
+      "recall": 1.0,
+      "precision": 1.0,
+      "missed_key_factors": []
+    }
+  ],
+  "summary": {
+    "successful_runs": 5,
+    "recall": {
+      "mean": 1.0,
+      "min": 1.0,
+      "max": 1.0
+    },
+    "precision": {
+      "mean": 1.0,
+      "min": 1.0,
+      "max": 1.0
+    }
+  }
+}

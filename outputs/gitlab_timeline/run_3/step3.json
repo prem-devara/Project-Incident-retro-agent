@@ -1,0 +1,77 @@
+{
+  "impact_summary": "GitLab.com was degraded from roughly 19:00 UTC on January 31st, when many users could not post comments on issues and merge requests, and the site was unavailable during recovery. Database data created between January 31st 17:20 UTC and 23:30 UTC was permanently lost, including an estimated 5000 projects, 5000 comments, and 700 users, after roughly 300 GB of production data was accidentally deleted. Recovery from a snapshot taken about 6 hours before the outage took until around 18:00 UTC on February 1st, roughly 23 hours after the data deletion.",
+  "action_items": [
+    {
+      "action": "Enable WAL archiving (continuous archiving to object storage) for the production PostgreSQL cluster so replicas can recover from WAL segments removed from the primary without manual resynchronisation.",
+      "owner_role": "Infrastructure team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Fix the pg_dump backup job to use a client binary matching the production PostgreSQL major version, and add an automated check that fails the job when versions mismatch.",
+      "owner_role": "Database reliability team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Route all cron and backup failure notifications through a monitored channel with DMARC-compliant sending, and alert when no successful backup has completed within the expected window.",
+      "owner_role": "Infrastructure team",
+      "type": "detect",
+      "priority": "high"
+    },
+    {
+      "action": "Establish a regularly scheduled, automated restore test of database backups (including the pg_dump and snapshot paths) into a non-production environment, with results reviewed by the team.",
+      "owner_role": "Database reliability team",
+      "type": "detect",
+      "priority": "high"
+    },
+    {
+      "action": "Add safeguards to production database operations, such as hostname and role verification scripts or confirmation prompts, so destructive commands like removing a data directory cannot run against the primary by mistake.",
+      "owner_role": "Infrastructure team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Enable Azure disk snapshots for all database servers, consistent with the NFS servers, and document their restore time expectations.",
+      "owner_role": "Infrastructure team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Update engineering runbooks to document that pg_basebackup waits silently for the primary to begin streaming replication data, and note expected output and wait times.",
+      "owner_role": "Database reliability team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Require that configuration changes such as max_wal_senders and max_connections be validated in staging and documented with rollback steps before being applied to production, and review existing values such as the max_connections setting of 8000.",
+      "owner_role": "Database reliability team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Change account-deletion behaviour for spam-flagged users to soft delete with a review and recovery window, and add throttling for background deletion jobs so they cannot add large database load.",
+      "owner_role": "Backend application team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Define and document a disaster recovery plan that does not depend on staging snapshots, including target recovery time objectives and faster storage for restore paths.",
+      "owner_role": "Infrastructure team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Establish an incident response guideline that asks engineers to pause and consult a second engineer before running irreversible production commands during an active incident.",
+      "owner_role": "On-call engineer",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Evaluate deploying a read replica load-balancing layer so the primary is not the sole database serving all traffic, reducing the blast radius of load spikes.",
+      "owner_role": "Database reliability team",
+      "type": "prevent",
+      "priority": "low"
+    }
+  ]
+}

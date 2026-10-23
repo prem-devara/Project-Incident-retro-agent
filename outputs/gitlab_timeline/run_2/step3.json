@@ -1,0 +1,77 @@
+{
+  "impact_summary": "GitLab.com was degraded for several hours starting around 19:00 UTC on January 31st, with many users unable to post comments on issues and merge requests. Database records created between January 31st 17:20 UTC and 23:30 UTC were permanently lost, including an estimated 5000 projects, 5000 comments, and roughly 700 users, while Git repositories and wikis were unaffected. Full restoration from a snapshot taken about 6 hours before the outage was completed around 18:00 UTC on February 1st, roughly 18 to 24 hours after the incident began.",
+  "action_items": [
+    {
+      "action": "Enable WAL archiving (continuous archiving to object storage) on the production PostgreSQL primary so that replicas can catch up after WAL segments are removed and point-in-time recovery is possible.",
+      "owner_role": "Database reliability team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Verify pg_dump backups by automatically restoring them into a scratch database on a schedule, and alert when restores fail or produce no output, using the pg_dump client version that matches the server major version.",
+      "owner_role": "Database reliability team",
+      "type": "detect",
+      "priority": "high"
+    },
+    {
+      "action": "Configure backup and cronjob failure notifications to use a delivery path that passes DMARC (or use a non-email alerting channel), and add alerts for missing or stale backup artifacts in S3.",
+      "owner_role": "Infrastructure team",
+      "type": "detect",
+      "priority": "high"
+    },
+    {
+      "action": "Enable managed disk snapshots and tested cross-region backups for all database servers, and document the expected restore time for each backup type.",
+      "owner_role": "Infrastructure team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Add a safeguard to destructive data-directory operations (such as a required host-role check that confirms the host is a replica and not the primary, or a confirmation step) and encode it in the replication rebuild runbook.",
+      "owner_role": "Database reliability team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Document in the engineering runbooks and internal tooling docs that pg_basebackup waits silently for the primary to begin streaming and may create files in the target directory, and add expected-output guidance for each step.",
+      "owner_role": "Database reliability team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Split read load across multiple replicas (e.g. evaluate pgpool-II or application-level read routing) so that a single primary is not the only node handling all production load.",
+      "owner_role": "Database reliability team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Audit PostgreSQL configuration against the host's resources and add config validation in deployment tooling (e.g. max_connections and related semaphore-dependent settings) so unsafe values are caught before a restart.",
+      "owner_role": "Infrastructure team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Change the abuse-handling workflow so accounts flagged for abuse are soft-locked and cannot be hard-deleted by background jobs without a review step, and rate-limit account-removal jobs.",
+      "owner_role": "Trust and safety engineering team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Upgrade staging restore storage to premium or equivalent high-throughput disks so that restoring from a snapshot or backup can be completed within the target recovery time.",
+      "owner_role": "Infrastructure team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Restrict the use of production-derived LVM snapshots outside the scheduled pipeline and require an approval step for ad-hoc production copies, to avoid extra production load during degraded periods.",
+      "owner_role": "Infrastructure team",
+      "type": "prevent",
+      "priority": "low"
+    },
+    {
+      "action": "Write and rehearse a disaster recovery runbook covering restore from each backup type, with a defined owner for coordinating communications and a timed drill performed at least quarterly.",
+      "owner_role": "Site reliability engineering team",
+      "type": "mitigate",
+      "priority": "medium"
+    }
+  ]
+}
