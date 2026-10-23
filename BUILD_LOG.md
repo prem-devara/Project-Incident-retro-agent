@@ -5,6 +5,7 @@ Notes for the README. Raw, dated, in build order.
 
 ## README highlights
 - An LLM judge can be lenient in ways prompt instructions don't fix. I caught it accepting a backwards cause by hand, so the judge needs human spot-checks and its own test.
+- Planted errors were easy for the judge to catch (15/15); the agent's own subtle errors were not, so synthetic tests can overstate judge reliability.
 
 ## Setup
 - Built with Claude Code (VS Code) as the coding assistant; agent calls models through aisuite, so providers can be swapped.
@@ -50,7 +51,9 @@ Notes for the README. Raw, dated, in build order.
 - Adding an explicit "wrong" rule to the judge prompt (anything that reduced harm or enabled recovery, named as a cause, is wrong) did not fix this; the judge still labelled #11 valid_extra.
 - Lesson: the judge needs its own test. Plant known-wrong factors in a factor list and check that the judge catches them before trusting its precision numbers.
 - The Step 4 reviewer catches a mitigating action listed as a cause only sometimes: in run 5 it removed #13 (manual snapshot named as a risk) but kept #11 (stale LVM snapshot "increasing data loss").
+- Judge test (`evaluate.py --judge-test`): appended 5 planted bad factors (4 wrong, 1 duplicate) to run 1's 11 factors and judged the list 3 times. Caught 15/15 across 3 runs, and no drift on the originals (all 11 kept their scores.json labels).
+- But the judge still accepted the agent's own subtler version of P1 (run 5 #11), so planted errors overstate judge reliability; real agent errors are subtler.
 
 ## Pending
-- Test the judge with planted wrong factors.
+- ~~Test the judge with planted wrong factors.~~ Done.
 - Automated eval (LLM-as-judge) across 10 postmortems.

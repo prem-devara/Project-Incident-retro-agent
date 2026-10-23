@@ -1,0 +1,423 @@
+{
+  "judge_model": "anthropic:claude-sonnet-5-5",
+  "source_factors": "outputs/gitlab_timeline/run_1/step4.json",
+  "baseline": "outputs/gitlab_timeline/scores.json (run 1)",
+  "original_count": 11,
+  "planted": [
+    {
+      "planted_id": "P1",
+      "judge_id": 12,
+      "factor": "The manual LVM snapshot taken 6 hours earlier caused the data loss.",
+      "evidence": "the LVM snapshot created 6 hours before the outage",
+      "expected": "wrong",
+      "runs": [
+        {
+          "run": 1,
+          "label": "wrong",
+          "reason": "The LVM snapshot limited data loss and enabled recovery; it did not cause the data loss."
+        },
+        {
+          "run": 2,
+          "label": "wrong",
+          "reason": "The manual LVM snapshot reduced data loss (limiting it to 6 hours) and enabled recovery; it did not cause the data loss."
+        },
+        {
+          "run": 3,
+          "label": "wrong",
+          "reason": "The manual LVM snapshot reduced data loss by providing a recovery point, so presenting it as the cause of data loss gets it backwards."
+        }
+      ],
+      "caught": 3,
+      "caught_text": "3/3"
+    },
+    {
+      "planted_id": "P2",
+      "judge_id": 13,
+      "factor": "An Azure region outage caused the replication lag.",
+      "evidence": "replication process started to lag behind",
+      "expected": "wrong",
+      "runs": [
+        {
+          "run": 1,
+          "label": "wrong",
+          "reason": "The report attributes replication lag to increased database load, not an Azure region outage."
+        },
+        {
+          "run": 2,
+          "label": "wrong",
+          "reason": "The report attributes replication lag to increased database load, not an Azure region outage."
+        },
+        {
+          "run": 3,
+          "label": "wrong",
+          "reason": "The report attributes replication lag to database load, not any Azure region outage."
+        }
+      ],
+      "caught": 3,
+      "caught_text": "3/3"
+    },
+    {
+      "planted_id": "P3",
+      "judge_id": 14,
+      "factor": "Spam emails rejected by DMARC caused the database overload.",
+      "evidence": "DMARC was not enabled for the cronjob emails",
+      "expected": "wrong",
+      "runs": [
+        {
+          "run": 1,
+          "label": "wrong",
+          "reason": "DMARC rejection affected backup failure notifications and did not cause the database overload, so this gets the cause backwards."
+        },
+        {
+          "run": 2,
+          "label": "wrong",
+          "reason": "DMARC rejection affected backup failure notification emails; it did not cause database overload, which came from spam and a background job."
+        },
+        {
+          "run": 3,
+          "label": "wrong",
+          "reason": "DMARC only caused the backup failure emails to be rejected; it did not cause spam or database overload."
+        }
+      ],
+      "caught": 3,
+      "caught_text": "3/3"
+    },
+    {
+      "planted_id": "P4",
+      "judge_id": 15,
+      "factor": "Engineers delayed the response by waiting for replies on Slack.",
+      "evidence": "asked for help on Slack",
+      "expected": "wrong",
+      "runs": [
+        {
+          "run": 1,
+          "label": "wrong",
+          "reason": "Asking for help on Slack is not presented in the report as a cause of delay."
+        },
+        {
+          "run": 2,
+          "label": "wrong",
+          "reason": "The report only mentions asking for help on Slack and does not say this delayed the response."
+        },
+        {
+          "run": 3,
+          "label": "wrong",
+          "reason": "The report only says engineers asked for help on Slack and does not state that waiting for replies delayed the response."
+        }
+      ],
+      "caught": 3,
+      "caught_text": "3/3"
+    },
+    {
+      "planted_id": "P5",
+      "judge_id": 16,
+      "factor": "A production data directory was deleted because the engineer believed they were working on the secondary server.",
+      "evidence": "errantly thinking they were doing so on the secondary",
+      "expected": "duplicate",
+      "runs": [
+        {
+          "run": 1,
+          "label": "duplicate",
+          "reason": "Repeats the same cause of deleting production data while believing it was the secondary, already covered in #5.",
+          "duplicate_of": 5
+        },
+        {
+          "run": 2,
+          "label": "duplicate",
+          "reason": "Repeats the same cause as #5: the engineer wiped the production data directory believing it was the secondary.",
+          "duplicate_of": 5
+        },
+        {
+          "run": 3,
+          "label": "duplicate",
+          "reason": "It repeats the same issue as #5, the data directory deleted on the primary because the engineer thought it was the secondary.",
+          "duplicate_of": 5
+        }
+      ],
+      "caught": 3,
+      "caught_text": "3/3"
+    }
+  ],
+  "original_label_changes": [],
+  "runs": [
+    {
+      "run": 1,
+      "labels": [
+        {
+          "id": 1,
+          "label": "valid_extra",
+          "reason": "The single-primary architecture with a failover-only standby is supported by the report as a systemic weakness, but it is not one of the key's specific causes."
+        },
+        {
+          "id": 2,
+          "label": "match",
+          "key_id": 1,
+          "reason": "Describes spam plus a background job removing an account as the source of the database load, matching K1."
+        },
+        {
+          "id": 3,
+          "label": "match",
+          "key_id": 2,
+          "reason": "Lack of WAL archiving meant the lagging secondary could not catch up after WAL segments were removed, matching the broken, unrecoverable replication in K2."
+        },
+        {
+          "id": 4,
+          "label": "valid_extra",
+          "reason": "The report states the silent-wait behavior of pg_basebackup was undocumented, which led to confusion and prolonged troubleshooting."
+        },
+        {
+          "id": 5,
+          "label": "match",
+          "key_id": 6,
+          "reason": "A destructive data directory removal run on the primary instead of the secondary matches K6."
+        },
+        {
+          "id": 6,
+          "label": "match",
+          "key_id": 3,
+          "reason": "Backups silently failing due to the pg_dump version mismatch matches the silent backup failure in K3."
+        },
+        {
+          "id": 7,
+          "label": "match",
+          "key_id": 3,
+          "reason": "Failure alert emails rejected due to DMARC matches the rejected failure alerts in K3."
+        },
+        {
+          "id": 8,
+          "label": "match",
+          "key_id": 5,
+          "reason": "No monitoring or verification that backups existed and were restorable matches K5's lack of ownership of restore testing."
+        },
+        {
+          "id": 9,
+          "label": "match",
+          "key_id": 4,
+          "reason": "Azure disk snapshots not being enabled for database servers matches K4."
+        },
+        {
+          "id": 10,
+          "label": "valid_extra",
+          "reason": "The report states slow throttled staging disks caused an 18-hour copy, extending recovery time."
+        },
+        {
+          "id": 11,
+          "label": "valid_extra",
+          "reason": "The excessive max_connections of 8000 blocked a PostgreSQL restart during troubleshooting, slowing the response, as the report describes."
+        },
+        {
+          "id": 12,
+          "label": "wrong",
+          "reason": "The LVM snapshot limited data loss and enabled recovery; it did not cause the data loss."
+        },
+        {
+          "id": 13,
+          "label": "wrong",
+          "reason": "The report attributes replication lag to increased database load, not an Azure region outage."
+        },
+        {
+          "id": 14,
+          "label": "wrong",
+          "reason": "DMARC rejection affected backup failure notifications and did not cause the database overload, so this gets the cause backwards."
+        },
+        {
+          "id": 15,
+          "label": "wrong",
+          "reason": "Asking for help on Slack is not presented in the report as a cause of delay."
+        },
+        {
+          "id": 16,
+          "label": "duplicate",
+          "duplicate_of": 5,
+          "reason": "Repeats the same cause of deleting production data while believing it was the secondary, already covered in #5."
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "labels": [
+        {
+          "id": 1,
+          "label": "valid_extra",
+          "reason": "The report explicitly describes the single primary/standby setup as a single point of failure handling all load, which is supported as an underlying architectural weakness but is not an answer-key factor."
+        },
+        {
+          "id": 2,
+          "label": "match",
+          "key_id": 1,
+          "reason": "Describes the spam and background-job-induced database load, matching K1 (the replication-lag consequence is additional detail)."
+        },
+        {
+          "id": 3,
+          "label": "match",
+          "key_id": 2,
+          "reason": "Replication failed because needed WAL segments were removed and the secondary had to be manually re-synced, matching K2's broken, unrecoverable replication."
+        },
+        {
+          "id": 4,
+          "label": "valid_extra",
+          "reason": "The report states the pg_basebackup silent-wait behavior was undocumented, which led to confusion and prolonged troubleshooting, though it is not in the key."
+        },
+        {
+          "id": 5,
+          "label": "match",
+          "key_id": 6,
+          "reason": "Describes the destructive directory wipe run on the primary instead of the secondary, matching K6."
+        },
+        {
+          "id": 6,
+          "label": "match",
+          "key_id": 3,
+          "reason": "Backups silently failed due to pg_dump version mismatch with no one noticing, matching K3's silent backup failure."
+        },
+        {
+          "id": 7,
+          "label": "match",
+          "key_id": 3,
+          "reason": "Failure alert emails were rejected due to DMARC, directly matching K3's rejected alert emails."
+        },
+        {
+          "id": 8,
+          "label": "match",
+          "key_id": 5,
+          "reason": "Lack of verification of backups' existence and restorability, discovered only during the incident, matches K5's missing ownership of restore testing."
+        },
+        {
+          "id": 9,
+          "label": "match",
+          "key_id": 4,
+          "reason": "States Azure disk snapshots were not enabled for the database servers, matching K4."
+        },
+        {
+          "id": 10,
+          "label": "valid_extra",
+          "reason": "The report states slow throttled staging disks made the 18-hour copy the restoration bottleneck, extending recovery."
+        },
+        {
+          "id": 11,
+          "label": "valid_extra",
+          "reason": "The excessive max_connections=8000 setting blocked PostgreSQL restart during the troubleshooting, adding delay, per the report."
+        },
+        {
+          "id": 12,
+          "label": "wrong",
+          "reason": "The manual LVM snapshot reduced data loss (limiting it to 6 hours) and enabled recovery; it did not cause the data loss."
+        },
+        {
+          "id": 13,
+          "label": "wrong",
+          "reason": "The report attributes replication lag to increased database load, not an Azure region outage."
+        },
+        {
+          "id": 14,
+          "label": "wrong",
+          "reason": "DMARC rejection affected backup failure notification emails; it did not cause database overload, which came from spam and a background job."
+        },
+        {
+          "id": 15,
+          "label": "wrong",
+          "reason": "The report only mentions asking for help on Slack and does not say this delayed the response."
+        },
+        {
+          "id": 16,
+          "label": "duplicate",
+          "duplicate_of": 5,
+          "reason": "Repeats the same cause as #5: the engineer wiped the production data directory believing it was the secondary."
+        }
+      ]
+    },
+    {
+      "run": 3,
+      "labels": [
+        {
+          "id": 1,
+          "label": "valid_extra",
+          "reason": "The report supports the single-primary/single point of failure architecture (standby only for failover) as a systemic weakness, which is not an answer-key factor."
+        },
+        {
+          "id": 2,
+          "label": "match",
+          "key_id": 1,
+          "reason": "Spam-driven load plus a background job removing a flagged account overloaded the database and caused replication lag, matching K1."
+        },
+        {
+          "id": 3,
+          "label": "match",
+          "key_id": 2,
+          "reason": "Replication failed because needed WAL segments were removed and no WAL archiving existed, so the replica could not recover automatically, matching K2."
+        },
+        {
+          "id": 4,
+          "label": "valid_extra",
+          "reason": "The report states pg_basebackup's silent waiting was undocumented, which contributed to confusion and prolonged the failed resync attempts."
+        },
+        {
+          "id": 5,
+          "label": "match",
+          "key_id": 6,
+          "reason": "A destructive directory wipe was run on the primary instead of the secondary, matching K6."
+        },
+        {
+          "id": 6,
+          "label": "match",
+          "key_id": 3,
+          "reason": "Backups silently failed due to the pg_dump version mismatch, which is the silent backup failure in K3."
+        },
+        {
+          "id": 7,
+          "label": "match",
+          "key_id": 3,
+          "reason": "Failure alert emails were rejected because DMARC was not enabled for cronjob emails, matching the alert-rejection part of K3."
+        },
+        {
+          "id": 8,
+          "label": "match",
+          "key_id": 5,
+          "reason": "Lack of monitoring or verification of backup existence and restorability corresponds to nobody owning restore testing in K5."
+        },
+        {
+          "id": 9,
+          "label": "match",
+          "key_id": 4,
+          "reason": "Azure disk snapshots were not enabled for the database servers, matching K4."
+        },
+        {
+          "id": 10,
+          "label": "valid_extra",
+          "reason": "The report states slow throttled staging disks were the bottleneck and the copy took about 18 hours, extending recovery."
+        },
+        {
+          "id": 11,
+          "label": "valid_extra",
+          "reason": "The excessive max_connections=8000 setting prevented PostgreSQL from restarting and delayed troubleshooting, as described in the report."
+        },
+        {
+          "id": 12,
+          "label": "wrong",
+          "reason": "The manual LVM snapshot reduced data loss by providing a recovery point, so presenting it as the cause of data loss gets it backwards."
+        },
+        {
+          "id": 13,
+          "label": "wrong",
+          "reason": "The report attributes replication lag to database load, not any Azure region outage."
+        },
+        {
+          "id": 14,
+          "label": "wrong",
+          "reason": "DMARC only caused the backup failure emails to be rejected; it did not cause spam or database overload."
+        },
+        {
+          "id": 15,
+          "label": "wrong",
+          "reason": "The report only says engineers asked for help on Slack and does not state that waiting for replies delayed the response."
+        },
+        {
+          "id": 16,
+          "label": "duplicate",
+          "duplicate_of": 5,
+          "reason": "It repeats the same issue as #5, the data directory deleted on the primary because the engineer thought it was the secondary."
+        }
+      ]
+    }
+  ]
+}

@@ -7,6 +7,7 @@ Recall and precision are computed in code from those labels.
 Usage:
     python evaluate.py data/gitlab_timeline.txt eval/gitlab_answer_key.txt
     python evaluate.py data/gitlab_timeline.txt eval/gitlab_answer_key.txt --rescore
+    python evaluate.py data/gitlab_timeline.txt eval/gitlab_answer_key.txt --judge-test
 """
 
 import argparse
@@ -19,6 +20,27 @@ NUM_RUNS = 5
 JUDGE_MODEL = agent.REVIEW_MODEL  # same model and thinking setting as Step 4
 LABELS = ("match", "valid_extra", "duplicate", "wrong")
 EXCLUDED_MARKER = "(not in input)"
+
+# --judge-test: known-bad factors appended to run_1's real factors
+JUDGE_TEST_RUNS = 3
+PLANTED_FACTORS = [
+    {"id": "P1", "expected": "wrong",
+     "factor": "The manual LVM snapshot taken 6 hours earlier caused the data loss.",
+     "evidence": "the LVM snapshot created 6 hours before the outage"},
+    {"id": "P2", "expected": "wrong",
+     "factor": "An Azure region outage caused the replication lag.",
+     "evidence": "replication process started to lag behind"},
+    {"id": "P3", "expected": "wrong",
+     "factor": "Spam emails rejected by DMARC caused the database overload.",
+     "evidence": "DMARC was not enabled for the cronjob emails"},
+    {"id": "P4", "expected": "wrong",
+     "factor": "Engineers delayed the response by waiting for replies on Slack.",
+     "evidence": "asked for help on Slack"},
+    {"id": "P5", "expected": "duplicate",
+     "factor": "A production data directory was deleted because the engineer believed "
+               "they were working on the secondary server.",
+     "evidence": "errantly thinking they were doing so on the secondary"},
+]
 
 
 # ---------- Answer key ----------
@@ -199,6 +221,89 @@ def print_table(runs, summary):
     print(f"successful runs: {summary['successful_runs']}/{len(runs)}\n")
 
 
+# ---------- Judge test ----------
+
+def label_summary(item):
+    """Label plus its target, e.g. 'duplicate of #5' or 'match K2'."""
+    if item["label"] == "duplicate":
+        return f"duplicate of #{item['duplicate_of']}"
+    if item["label"] == "match":
+        return f"match K{item['key_id']}"
+    return item["label"]
+
+
+def run_judge_test(incident_text, key_factors, base_folder):
+    """Judge run_1's factors plus planted bad factors, and check the judge catches them."""
+    with open(os.path.join(base_folder, "run_1", "step4.json"), encoding="utf-8") as f:
+        originals = json.load(f)["factors"]
+    with open(os.path.join(base_folder, "scores.json"), encoding="utf-8") as f:
+        baseline_run = next(r for r in json.load(f)["runs"] if r["run"] == 1)
+    baseline = {item["id"]: item["label"] for item in baseline_run["labels"]}
+
+    planted = [{"factor": p["factor"], "evidence": f"\"{p['evidence']}\""}
+               for p in PLANTED_FACTORS]
+    combined = originals + planted
+    first_planted = len(originals) + 1
+
+    runs = []
+    for i in range(1, JUDGE_TEST_RUNS + 1):
+        print(f"\n===== Judge test {i}/{JUDGE_TEST_RUNS} ({len(combined)} factors) =====")
+        try:
+            runs.append({"run": i, "labels": judge_factors(incident_text, key_factors, combined)})
+        except Exception as error:  # record the failure and carry on with other runs
+            print(f"  Run {i} failed: {error}")
+            runs.append({"run": i, "error": f"{type(error).__name__}: {error}"})
+
+    planted_results = []
+    for n, p in enumerate(PLANTED_FACTORS, start=first_planted):
+        per_run = []
+        for run in runs:
+            if "error" in run:
+                per_run.append({"run": run["run"], "error": run["error"]})
+                continue
+            item = run["labels"][n - 1]
+            entry = {"run": run["run"], "label": item["label"], "reason": item["reason"]}
+            for field in ("key_id", "duplicate_of"):
+                if field in item:
+                    entry[field] = item[field]
+            per_run.append(entry)
+        caught = sum(r.get("label") == p["expected"] for r in per_run)
+        planted_results.append({
+            "planted_id": p["id"], "judge_id": n, "factor": p["factor"],
+            "evidence": p["evidence"], "expected": p["expected"],
+            "runs": per_run, "caught": caught, "caught_text": f"{caught}/{len(runs)}",
+        })
+
+    drift = []
+    for n, factor in enumerate(originals, start=1):
+        labels = [None if "error" in run else run["labels"][n - 1]["label"] for run in runs]
+        if any(label is not None and label != baseline[n] for label in labels):
+            drift.append({"id": n, "factor": factor["factor"],
+                          "baseline_label": baseline[n], "run_labels": labels})
+
+    result = {
+        "judge_model": JUDGE_MODEL,
+        "source_factors": os.path.join(base_folder, "run_1", "step4.json"),
+        "baseline": os.path.join(base_folder, "scores.json") + " (run 1)",
+        "original_count": len(originals),
+        "planted": planted_results,
+        "original_label_changes": drift,
+        "runs": runs,
+    }
+    agent.save_json(result, base_folder, "judge_test.json")
+
+    print("\n========== JUDGE TEST ==========")
+    for r in planted_results:
+        labels = ["ERROR" if "error" in x else label_summary(x) for x in r["runs"]]
+        print(f"{r['planted_id']} (#{r['judge_id']})  expected {r['expected']:<10} "
+              f"caught {r['caught_text']}  runs: {' | '.join(labels)}")
+    print(f"\nOriginal factors whose label changed from scores.json run 1: {len(drift)}")
+    for d in drift:
+        labels = ["ERROR" if label is None else label for label in d["run_labels"]]
+        print(f"  #{d['id']}  baseline {d['baseline_label']}  runs: {' | '.join(labels)}")
+    print()
+
+
 # ---------- Main ----------
 
 def main():
@@ -207,6 +312,9 @@ def main():
     parser.add_argument("answer_key", help="answer key file")
     parser.add_argument("--rescore", action="store_true",
                         help="skip the agent; re-judge the existing run_*/step4.json")
+    parser.add_argument("--judge-test", action="store_true",
+                        help="judge run_1's factors plus planted bad factors "
+                             f"{JUDGE_TEST_RUNS} times and report which were caught")
     args = parser.parse_args()
 
     with open(args.input_file, encoding="utf-8") as f:
@@ -215,6 +323,10 @@ def main():
 
     name = os.path.splitext(os.path.basename(args.input_file))[0]
     base_folder = os.path.join("outputs", name)
+
+    if args.judge_test:
+        run_judge_test(incident_text, key_factors, base_folder)
+        return
 
     runs = []
     for i in range(1, NUM_RUNS + 1):
