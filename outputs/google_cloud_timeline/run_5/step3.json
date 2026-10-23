@@ -1,0 +1,77 @@
+{
+  "impact_summary": "On June 12, 2025, Google Cloud and Google Workspace products, including Cloud Storage, BigQuery, Compute Engine, Cloud Run, Cloud Spanner, Pub/Sub, IAM, the Google Cloud Console, Gmail, and Google Drive, experienced increased 503 errors and intermittent API and user-interface access issues across global regions. The disruption began around 10:45 PT and most products recovered by about 13:45 PT, with us-central1 and multi-region/us recovering by about 14:00 PT. Residual impact, such as Dataflow backlogs and Vertex AI Online Prediction 5xx errors, persisted until about 18:18 PT. Existing streaming and IaaS resources were not affected.",
+  "action_items": [
+    {
+      "action": "Require every new code path, including dormant or policy-triggered paths, to be exercised by automated tests with representative and malformed policy data before regional rollout begins.",
+      "owner_role": "Service Control engineering team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Add strict schema validation and required-field checks on policy data at write time in the Spanner tables, rejecting changes with blank fields before they are replicated.",
+      "owner_role": "Service Control engineering team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Make Service Control consumers handle null or blank policy fields defensively so malformed data degrades to a safe default instead of causing a crash loop.",
+      "owner_role": "Service Control engineering team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Implement staged, canary-based propagation of policy and metadata changes so a change reaches a small set of regions first and is halted automatically if error rates rise, instead of replicating globally within seconds.",
+      "owner_role": "Infrastructure team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Design fail-open or graceful-degradation behavior in the policy check path so that malformed policy data does not cause broad 503 errors on API requests.",
+      "owner_role": "API management and control plane team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Replace the manually deployed red-button kill switch with an automated or pre-deployed mechanism that can disable a serving path within minutes, and test it regularly.",
+      "owner_role": "Service Control engineering team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Add restart backoff, jittered startup, and load-shedding for Service Control tasks so that mass restarts do not overload the underlying Spanner table in large regions.",
+      "owner_role": "Infrastructure team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Host Cloud Service Health and status-publishing infrastructure on systems independent of Google Cloud's production control plane, so incident communication is not blocked by the outage it reports.",
+      "owner_role": "Cloud Service Health team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Define a target for initial customer incident notification and enforce it through paging and escalation rules for the communications team, so that the first public notice is not delayed by an hour.",
+      "owner_role": "Incident management and communications team",
+      "type": "detect",
+      "priority": "medium"
+    },
+    {
+      "action": "Create and publish guidance and tooling for customers to run external, multi-cloud monitoring and health checks, so they retain a signal when their Google Cloud-hosted monitoring fails.",
+      "owner_role": "Customer reliability engineering team",
+      "type": "detect",
+      "priority": "medium"
+    },
+    {
+      "action": "Add alerting on crash-loop rates and 503 error spikes per region that fires within minutes of onset, so on-call engineers are paged before customer-visible impact spreads.",
+      "owner_role": "On-call engineer",
+      "type": "detect",
+      "priority": "medium"
+    },
+    {
+      "action": "Document and run recovery drills for large-region herd effects and multi-region database failover, including us-central1, to shorten time-to-recovery for future incidents.",
+      "owner_role": "Site reliability engineering team",
+      "type": "mitigate",
+      "priority": "low"
+    }
+  ]
+}

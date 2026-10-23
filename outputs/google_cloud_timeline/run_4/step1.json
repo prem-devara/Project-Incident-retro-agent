@@ -1,0 +1,104 @@
+{
+  "events": [
+    {
+      "time": "May 29, 2025",
+      "description": "A new feature was added to Service Control for additional quota policy checks; the code change and binary release were rolled out region by region, but the new code path was never exercised because it required a policy change to trigger it. A red-button to disable that serving path was included."
+    },
+    {
+      "time": "June 12, 2025 ~10:45 (US/Pacific)",
+      "description": "A policy change with unintended blank fields was inserted into the regional Spanner tables used by Service Control and replicated globally within seconds; Service Control then exercised the new code path, which hit a null pointer and put the binaries into a crash loop globally in each regional deployment."
+    },
+    {
+      "time": "June 12, 2025 ~10:47 (US/Pacific)",
+      "description": "Within 2 minutes of the start of the incident, the Site Reliability Engineering team was triaging the incident."
+    },
+    {
+      "time": "June 12, 2025 ~10:51 (US/Pacific)",
+      "description": "Multiple GCP products began experiencing service issues (as stated in the 11:46 status update)."
+    },
+    {
+      "time": "June 12, 2025 ~10:55 (US/Pacific)",
+      "description": "Within 10 minutes of the start of the incident, the cause was identified and the red-button to disable the serving path was being put in place."
+    },
+    {
+      "time": "June 12, 2025 ~11:10 (US/Pacific)",
+      "description": "The red-button was ready to roll out, approximately 25 minutes from the start of the incident."
+    },
+    {
+      "time": "June 12, 2025 ~11:25 (US/Pacific)",
+      "description": "Within 40 minutes of the incident, the red-button rollout was completed and recovery began across regions, starting with the smaller ones."
+    },
+    {
+      "time": "June 12, 2025 ~11:46 (US/Pacific)",
+      "description": "Status update posted: multiple GCP products experiencing service issues; engineering investigating; no workaround available."
+    },
+    {
+      "time": "June 12, 2025 (approx. 1 hour after crashes began) (US/Pacific)",
+      "description": "The first incident report was posted to Cloud Service Health, delayed because Cloud Service Health infrastructure was down due to the outage."
+    },
+    {
+      "time": "June 12, 2025 12:09 (US/Pacific)",
+      "description": "Status update: issue recovered in some locations; no ETA on full mitigation."
+    },
+    {
+      "time": "June 12, 2025 shortly after recovery began in larger regions (US/Pacific)",
+      "description": "As Service Control tasks restarted in larger regions such as us-central1, a herd effect overloaded the underlying Spanner table infrastructure; the team throttled task creation and routed traffic to multi-regional databases."
+    },
+    {
+      "time": "June 12, 2025 12:30 (US/Pacific)",
+      "description": "Status update: all locations except us-central1 fully recovered; us-central1 mostly recovered."
+    },
+    {
+      "time": "June 12, 2025 12:41 (US/Pacific)",
+      "description": "Underlying dependency recovered in all locations except us-central1."
+    },
+    {
+      "time": "June 12, 2025 13:16 (US/Pacific)",
+      "description": "Infrastructure recovered in all regions except us-central1; issues persisted on us-central1 and multi-region/us."
+    },
+    {
+      "time": "June 12, 2025 13:45 (US/Pacific)",
+      "description": "Most Google Cloud products fully recovered (as stated in the 15:16 status update)."
+    },
+    {
+      "time": "June 12, 2025 14:00 (US/Pacific)",
+      "description": "Mitigation implemented for us-central1 and multi-region/us; signs of recovery observed."
+    },
+    {
+      "time": "June 12, 2025 14:23 (US/Pacific)",
+      "description": "Most Google Cloud products confirmed full service recovery; a few services still showed residual impact."
+    },
+    {
+      "time": "June 12, 2025 16:13 (US/Pacific)",
+      "description": "Residual impact noted: Dataflow backlog clearing gradually, Vertex AI Online Prediction elevated 5xx errors on some Model Garden models, Personalized Service Health updates delayed."
+    },
+    {
+      "time": "June 12, 2025 17:05 (US/Pacific)",
+      "description": "Vertex AI Model Garden 5xx errors resolved (as stated in the 17:59 status update)."
+    },
+    {
+      "time": "June 12, 2025 17:06 (US/Pacific)",
+      "description": "Dataflow backlog cleared in all regions except us-central1."
+    },
+    {
+      "time": "June 12, 2025 17:10 (US/Pacific)",
+      "description": "Dataflow fully resolved (as stated in the 17:33 status update)."
+    },
+    {
+      "time": "June 12, 2025 17:33 (US/Pacific)",
+      "description": "Personalized Service Health resolved; only remaining impact was Vertex AI Online Prediction."
+    },
+    {
+      "time": "June 12, 2025 17:59 (US/Pacific)",
+      "description": "Status update: Vertex AI Model Garden 5xx errors resolved; serving back to normal except europe-west1 and asia-southeast1."
+    },
+    {
+      "time": "June 12, 2025 18:18 (US/Pacific)",
+      "description": "Vertex AI Online Prediction fully recovered (as stated in the 18:27 status update)."
+    },
+    {
+      "time": "June 12, 2025 18:27 (US/Pacific)",
+      "description": "Status update: all services fully recovered."
+    }
+  ]
+}

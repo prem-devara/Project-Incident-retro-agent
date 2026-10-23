@@ -1,0 +1,138 @@
+{
+  "factor_verdicts": [
+    {
+      "id": 1,
+      "verdict": "keep",
+      "reason": "The report states an input was entered incorrectly and removed more servers than intended, so this directly caused the failure; the 'tool not limiting scope' clause is implied by the report's outcome, and the wording already avoids blaming an individual."
+    },
+    {
+      "id": 2,
+      "verdict": "merge with #1",
+      "reason": "Describes the same underlying issue as #1 (the removal command affecting more servers than intended), only stressing the consequence; the affected subsystems are better captured in the merged factor.",
+      "new_wording": null
+    },
+    {
+      "id": 3,
+      "verdict": "keep",
+      "reason": "Report states removing significant capacity caused each subsystem to require a full restart, during which S3 could not serve requests, so this directly drove the outage."
+    },
+    {
+      "id": 4,
+      "verdict": "keep",
+      "reason": "Report explicitly says restart and metadata safety checks took longer than expected, which extended the outage."
+    },
+    {
+      "id": 5,
+      "verdict": "keep",
+      "reason": "Report lists dependent services (S3 console, EC2 launches, EBS, Lambda) impacted while S3 APIs were unavailable, widening the impact."
+    },
+    {
+      "id": 6,
+      "verdict": "keep",
+      "reason": "Report states the team could not update the SHD until 11:37AM due to its S3 dependency, which impaired customer communication."
+    },
+    {
+      "id": 7,
+      "verdict": "merge with #6",
+      "reason": "The use of Twitter and banner text was the mitigation for the SHD dependency (#6), which limited the communication damage rather than being a separate cause; it is the same communication issue.",
+      "new_wording": null
+    },
+    {
+      "id": 8,
+      "verdict": "keep",
+      "reason": "Report states some services accumulated a backlog and needed additional time to fully recover after S3 was restored."
+    }
+  ],
+  "factors": [
+    {
+      "factor": "Incorrect input to a command in an established operational playbook, with the tool not limiting the scope of removal to a small set of servers",
+      "evidence": "\"One of the inputs to the command was entered incorrectly and a larger set of servers was removed than intended.\" | \"The servers that were removed supported two other S3 subsystems. One of these subsystems, the index subsystem, manages the metadata and location information of all S3 objects in the region.\""
+    },
+    {
+      "factor": "Removal of a significant portion of capacity forced full restarts of subsystems rather than a gradual or partial recovery",
+      "evidence": "\"Removing a significant portion of the capacity caused each of these systems to require a full restart.\""
+    },
+    {
+      "factor": "Restart and safety-check processes took longer than expected, extending the outage",
+      "evidence": "\"The process of restarting these services and running the necessary safety checks to validate the integrity of the metadata took longer than expected.\""
+    },
+    {
+      "factor": "Tight coupling between services: dependent AWS services in US-EAST-1 failed when S3 APIs became unavailable",
+      "evidence": "\"Other AWS services in the US-EAST-1 Region that rely on S3 for storage, including the S3 console, Amazon Elastic Compute Cloud (EC2) new instance launches, Amazon Elastic Block Store (EBS) volumes ... and AWS Lambda were also impacted while the S3 APIs were unavailable.\""
+    },
+    {
+      "factor": "Hidden dependency of the status dashboard administration console on S3, which prevented timely customer communication during the incident",
+      "evidence": "\"the team was unable to update the individual services' status on the AWS Service Health Dashboard (SHD) because of a dependency the SHD administration console has on Amazon S3.\" | \"Instead, the AWS Twitter feed (@AWSCloud) and SHD banner text were used to communicate status until the individual services' status could be updated on the SHD.\""
+    },
+    {
+      "factor": "Accumulated backlog in dependent services extended recovery time after S3 was restored",
+      "evidence": "\"Some of these services had accumulated a backlog of work during the S3 disruption and required additional time to fully recover.\""
+    }
+  ],
+  "action_items": [
+    {
+      "action": "Modify the server-removal tooling to require confirmation of the target set and enforce a maximum removal count per invocation, rejecting commands that exceed the playbook's expected scope",
+      "owner_role": "Infrastructure tooling team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Restructure the operational playbook so capacity removal is executed in small, incremental batches with validation between steps rather than as a single bulk command",
+      "owner_role": "S3 operations team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Add pre-execution dry-run output that lists every affected server and its supported subsystems, and require explicit review of the blast radius before a removal command runs",
+      "owner_role": "S3 operations team",
+      "type": "detect",
+      "priority": "high"
+    },
+    {
+      "action": "Redesign the index and placement subsystem restart procedures to support partial or rolling restarts so that removing a portion of capacity does not force a full region-wide restart",
+      "owner_role": "S3 storage subsystems team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Profile and optimize the metadata integrity safety checks run during subsystem restart, and establish target recovery durations for each step",
+      "owner_role": "S3 storage subsystems team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Remove the dependency of the Service Health Dashboard administration console on S3 by hosting it in a separate, independently failing infrastructure",
+      "owner_role": "Service Health Dashboard engineering team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Document and rehearse a fallback customer communication process that uses the designed status mechanism in a degraded state, and define when to use alternate channels",
+      "owner_role": "Incident communications team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Map runtime dependencies of services in US-EAST-1 on S3 and identify which ones should degrade gracefully or use cached or alternate storage when S3 APIs are unavailable",
+      "owner_role": "Platform architecture team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Build and test backlog-drain procedures for dependent services so they can recover queued work in a controlled manner after an upstream outage",
+      "owner_role": "Dependent services owning teams",
+      "type": "mitigate",
+      "priority": "low"
+    }
+  ],
+  "changes": [
+    {
+      "change": "Merged #2 into #1: The command removed servers supporting critical subsystems (index and placement) that were not the intended target of the operation, creating a large blast radius",
+      "reason": "Describes the same underlying issue as #1 (the removal command affecting more servers than intended), only stressing the consequence; the affected subsystems are better captured in the merged factor."
+    },
+    {
+      "change": "Merged #7 into #6: Communication fallback relied on ad hoc channels (Twitter feed and banner text) rather than the designed status mechanism",
+      "reason": "The use of Twitter and banner text was the mitigation for the SHD dependency (#6), which limited the communication damage rather than being a separate cause; it is the same communication issue."
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "factors": [
+    {
+      "factor": "Untested code path: the new Service Control quota-policy code was never exercised during the region-by-region rollout because it only activates when a policy change triggers it, so the null-pointer bug went undetected before reaching production.",
+      "evidence": "\"This code change and binary release went through a region by region rollout, but the new code path was never exercised during this rollout because it needed a policy change to trigger it.\""
+    },
+    {
+      "factor": "Insufficient input validation: the new code path did not handle blank fields in policy data, causing a null pointer crash when the malformed policy was read.",
+      "evidence": "\"This pulled in blank fields for this policy change and exercised the new code path, which hit a null pointer and caused the binaries to go into a crash loop.\""
+    },
+    {
+      "factor": "Unsafe global replication of configuration data: a policy change with unintended blank fields was replicated globally within seconds without a staged or validated rollout, so the bad data reached every region at once.",
+      "evidence": "\"This metadata was replicated globally within seconds. This policy data contained unintended blank fields.\""
+    },
+    {
+      "factor": "Global simultaneous impact: the crash loop occurred in every regional deployment at once, turning a single bad config into a worldwide outage rather than a contained regional one.",
+      "evidence": "\"This occurred globally, in each regional deployment.\""
+    },
+    {
+      "factor": "Slow mitigation due to the red-button kill switch requiring a rollout to take effect: despite fast detection, recovery waited on deploying the disable mechanism across regions.",
+      "evidence": "\"The red-button was ready to roll out, ~25 minutes from the start of the incident.\" and \"Within 40 minutes of the incident, the red-button rollout was completed, and recovery started across regions\""
+    },
+    {
+      "factor": "Thundering herd on recovery: restarting Service Control tasks simultaneously overloaded the underlying Spanner table in large regions, prolonging recovery in us-central1 to roughly 2h 40m.",
+      "evidence": "\"as Service Control tasks restarted, it created a herd effect on the underlying infrastructure it depends on (the Spanner table), overloading that infrastructure.\""
+    },
+    {
+      "factor": "Lack of restart/backoff safeguards and load control during recovery, requiring manual throttling and traffic rerouting by the team.",
+      "evidence": "\"The team throttled task creation to minimize the impact on the underlying infrastructure and routed traffic to multi-regional databases to reduce the load.\""
+    },
+    {
+      "factor": "Shared dependency on Google Cloud for status communication: the status page infrastructure ran on the affected platform, delaying the first customer-facing report.",
+      "evidence": "\"The first incident report was posted to Cloud Service Health ~1h after the start of the crashes, because the Cloud Service Health infrastructure was down due to this outage.\""
+    },
+    {
+      "factor": "Customer monitoring dependency on affected infrastructure: customers' monitoring running on Google Cloud also failed, leaving them without incident signal.",
+      "evidence": "\"For some customers, the monitoring infrastructure they had running on Google Cloud was also failing, leaving them without a signal of the incident or an understanding of the impact.\""
+    },
+    {
+      "factor": "Absence of a workaround for customers during the outage, limiting customer-side mitigation options.",
+      "evidence": "\"Workaround: none at this time.\""
+    }
+  ]
+}

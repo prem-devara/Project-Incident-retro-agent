@@ -1,0 +1,570 @@
+{
+  "input_file": "data/google_cloud_timeline.txt",
+  "answer_key": "eval/google_cloud_answer_key.txt",
+  "judge_model": "anthropic:claude-sonnet-5-5",
+  "rescored": true,
+  "key_factors": [
+    {
+      "id": 1,
+      "text": "The new Service Control code path had no error handling for blank or invalid policy data, so a null pointer crashed the binary",
+      "excluded": false
+    },
+    {
+      "id": 2,
+      "text": "The region-by-region rollout never exercised the new code path, because it only ran when a policy change triggered it",
+      "excluded": false
+    },
+    {
+      "id": 3,
+      "text": "A policy change containing unintended blank fields was inserted into the policy tables",
+      "excluded": false
+    },
+    {
+      "id": 4,
+      "text": "Policy metadata replicated globally within seconds, so the bad data reached every region at once",
+      "excluded": false
+    },
+    {
+      "id": 5,
+      "text": "Restarting Service Control tasks caused a herd effect that overloaded the Spanner table in us-central1 (no randomized exponential backoff)",
+      "excluded": false
+    },
+    {
+      "id": 6,
+      "text": "Cloud Service Health ran on the failing infrastructure, so the first customer update was delayed ~1 hour",
+      "excluded": false
+    },
+    {
+      "id": 7,
+      "text": "The change was not feature-flag protected, so it could not be enabled gradually and caught in staging",
+      "excluded": true
+    },
+    {
+      "id": 8,
+      "text": "Service Control failed closed: when its policy check crashed, API requests were rejected instead of served",
+      "excluded": true
+    }
+  ],
+  "runs": [
+    {
+      "run": 1,
+      "labels": [
+        {
+          "id": 1,
+          "factor": "Untested code path: the new Service Control quota-check feature was never exercised during the region-by-region rollout because it required a policy change to trigger it, so the null-pointer defect went undetected before global impact.",
+          "label": "match",
+          "reason": "Describes the new code path never being exercised during the region-by-region rollout because it required a policy change to trigger it, matching K2.",
+          "key_ids": [
+            2
+          ],
+          "key_texts": [
+            "The region-by-region rollout never exercised the new code path, because it only ran when a policy change triggered it"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 2,
+          "factor": "Missing input validation on policy data: Service Control consumed policy metadata containing unintended blank fields without rejecting or guarding against them, causing a null pointer dereference.",
+          "label": "match",
+          "reason": "Covers the blank-field policy data and the missing guarding/validation that led to the null pointer crash, matching K3 and K1.",
+          "key_ids": [
+            1,
+            3
+          ],
+          "key_texts": [
+            "The new Service Control code path had no error handling for blank or invalid policy data, so a null pointer crashed the binary",
+            "A policy change containing unintended blank fields was inserted into the policy tables"
+          ],
+          "key_excluded": [
+            false,
+            false
+          ]
+        },
+        {
+          "id": 3,
+          "factor": "Policy and metadata changes replicated globally within seconds with no staged or progressive rollout, so a single bad change reached every regional deployment at once and the crash loop was not contained to a single region.",
+          "label": "match",
+          "reason": "Global replication of policy metadata within seconds spreading the bad change to every region matches K4.",
+          "key_ids": [
+            4
+          ],
+          "key_texts": [
+            "Policy metadata replicated globally within seconds, so the bad data reached every region at once"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 4,
+          "factor": "Recovery was slowed by a herd effect when restarted Service Control tasks in large regions overloaded the underlying Spanner table, requiring throttling and rerouting and extending recovery in us-central1 to about 2h 40m.",
+          "label": "match",
+          "reason": "Herd effect from restarted Service Control tasks overloading the Spanner table in us-central1 matches K5.",
+          "key_ids": [
+            5
+          ],
+          "key_texts": [
+            "Restarting Service Control tasks caused a herd effect that overloaded the Spanner table in us-central1 (no randomized exponential backoff)"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 5,
+          "factor": "Communication channel dependency: the status page infrastructure ran on the same failing Google Cloud infrastructure, delaying the first public incident report by about an hour.",
+          "label": "match",
+          "reason": "Cloud Service Health running on the failing infrastructure and delaying the first report by ~1h matches K6.",
+          "key_ids": [
+            6
+          ],
+          "key_texts": [
+            "Cloud Service Health ran on the failing infrastructure, so the first customer update was delayed ~1 hour"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 6,
+          "factor": "Blast radius widened across products because the shared API management and control plane was a common dependency for many Google Cloud and Workspace services.",
+          "label": "valid_extra",
+          "reason": "The report supports that the shared API management/control plane being a common dependency made the outage affect many products, though it is not in the answer key."
+        },
+        {
+          "id": 7,
+          "factor": "Residual backlogs and delayed downstream services (Dataflow, Vertex AI, Personalized Service Health) prolonged impact well after the primary issue was mitigated.",
+          "label": "valid_extra",
+          "reason": "The report documents residual backlogs (Dataflow, Vertex AI, Personalized Service Health) extending impact after primary mitigation, which is supported but not in the key."
+        }
+      ],
+      "counts": {
+        "match": 5,
+        "valid_extra": 2,
+        "duplicate": 0,
+        "wrong": 0
+      },
+      "total_factors": 7,
+      "recall": 1.0,
+      "precision": 1.0,
+      "missed_key_factors": []
+    },
+    {
+      "run": 2,
+      "labels": [
+        {
+          "id": 1,
+          "factor": "Untested code path: the new Service Control quota-policy code was never exercised during the region-by-region rollout because it only activates when a policy change triggers it, so the null-pointer bug went undetected before reaching production.",
+          "label": "match",
+          "reason": "The new code path was never exercised during the region-by-region rollout because it required a policy change to trigger it, which is exactly K2.",
+          "key_ids": [
+            2
+          ],
+          "key_texts": [
+            "The region-by-region rollout never exercised the new code path, because it only ran when a policy change triggered it"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 2,
+          "factor": "Insufficient input validation: the new code path did not handle blank fields in policy data, causing a null pointer crash when the malformed policy was read.",
+          "label": "match",
+          "reason": "The new code path lacked handling for blank policy fields, causing a null pointer crash, matching K1.",
+          "key_ids": [
+            1
+          ],
+          "key_texts": [
+            "The new Service Control code path had no error handling for blank or invalid policy data, so a null pointer crashed the binary"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 3,
+          "factor": "Unsafe global replication of configuration data: a policy change containing unintended blank fields was replicated globally within seconds without staged rollout or validation, so the bad data reached every region at once and caused simultaneous crash loops and a worldwide outage rather than a contained regional one.",
+          "label": "match",
+          "reason": "It covers both the policy change with unintended blank fields and its global replication within seconds reaching every region at once.",
+          "key_ids": [
+            3,
+            4
+          ],
+          "key_texts": [
+            "A policy change containing unintended blank fields was inserted into the policy tables",
+            "Policy metadata replicated globally within seconds, so the bad data reached every region at once"
+          ],
+          "key_excluded": [
+            false,
+            false
+          ]
+        },
+        {
+          "id": 4,
+          "factor": "Kill switch required a rollout to take effect: although the cause was identified within ~10 minutes, the red-button had to be prepared and rolled out across regions, with recovery starting only ~40 minutes after the incident began.",
+          "label": "valid_extra",
+          "reason": "The report shows the red-button needed ~25 min to prepare and ~40 min to roll out before recovery began, which delayed mitigation, though it is not in the key."
+        },
+        {
+          "id": 5,
+          "factor": "Thundering herd on recovery: restarting Service Control tasks simultaneously overloaded the underlying Spanner table in large regions, prolonging recovery in us-central1 to roughly 2h 40m.",
+          "label": "match",
+          "reason": "Restarting Service Control tasks created a herd effect overloading the Spanner table in us-central1, matching K5.",
+          "key_ids": [
+            5
+          ],
+          "key_texts": [
+            "Restarting Service Control tasks caused a herd effect that overloaded the Spanner table in us-central1 (no randomized exponential backoff)"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 6,
+          "factor": "Shared dependency on Google Cloud for status communication: the status page infrastructure ran on the affected platform, delaying the first customer-facing report.",
+          "label": "match",
+          "reason": "Cloud Service Health ran on the failing infrastructure, delaying the first customer report by ~1h, matching K6.",
+          "key_ids": [
+            6
+          ],
+          "key_texts": [
+            "Cloud Service Health ran on the failing infrastructure, so the first customer update was delayed ~1 hour"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 7,
+          "factor": "Customer monitoring dependency on affected infrastructure: customers' monitoring running on Google Cloud also failed, leaving them without incident signal.",
+          "label": "valid_extra",
+          "reason": "The report states some customers' monitoring on Google Cloud also failed, leaving them without incident signal, which worsened impact but is not in the key."
+        }
+      ],
+      "counts": {
+        "match": 5,
+        "valid_extra": 2,
+        "duplicate": 0,
+        "wrong": 0
+      },
+      "total_factors": 7,
+      "recall": 1.0,
+      "precision": 1.0,
+      "missed_key_factors": []
+    },
+    {
+      "run": 3,
+      "labels": [
+        {
+          "id": 1,
+          "factor": "Untested new code path: the Service Control feature added on May 29 was never exercised during the region-by-region rollout because it required a policy change to trigger it, so the null pointer defect went undetected before production.",
+          "label": "match",
+          "reason": "The new code path never being exercised during the region-by-region rollout because it required a policy change is exactly K2.",
+          "key_ids": [
+            2
+          ],
+          "key_texts": [
+            "The region-by-region rollout never exercised the new code path, because it only ran when a policy change triggered it"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 2,
+          "factor": "Missing input validation/null handling: the code path hit a null pointer when quota checks pulled in blank policy fields, causing binaries to crash.",
+          "label": "match",
+          "reason": "The new code path hit a null pointer on blank policy fields and crashed the binaries, matching K1's missing handling of blank or invalid data.",
+          "key_ids": [
+            1
+          ],
+          "key_texts": [
+            "The new Service Control code path had no error handling for blank or invalid policy data, so a null pointer crashed the binary"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 3,
+          "factor": "Unvalidated policy data propagated globally: a policy change containing unintended blank fields was replicated worldwide within seconds without being caught, so the bad data reached every region at once.",
+          "label": "match",
+          "reason": "It covers both the policy change with unintended blank fields (K3) and its global replication within seconds reaching every region at once (K4).",
+          "key_ids": [
+            3,
+            4
+          ],
+          "key_texts": [
+            "A policy change containing unintended blank fields was inserted into the policy tables",
+            "Policy metadata replicated globally within seconds, so the bad data reached every region at once"
+          ],
+          "key_excluded": [
+            false,
+            false
+          ]
+        },
+        {
+          "id": 4,
+          "factor": "Recovery delayed by a herd effect: restarting Service Control tasks overloaded the underlying Spanner table in larger regions, extending recovery in us-central1 to roughly 2h 40m.",
+          "label": "match",
+          "reason": "Restarting Service Control tasks caused a herd effect that overloaded the Spanner table in us-central1, matching K5.",
+          "key_ids": [
+            5
+          ],
+          "key_texts": [
+            "Restarting Service Control tasks caused a herd effect that overloaded the Spanner table in us-central1 (no randomized exponential backoff)"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 5,
+          "factor": "Communication channel dependency: the status page infrastructure depended on the affected Google Cloud services, delaying the first public incident report by about an hour.",
+          "label": "match",
+          "reason": "Cloud Service Health infrastructure being down delayed the first incident report by about an hour, matching K6.",
+          "key_ids": [
+            6
+          ],
+          "key_texts": [
+            "Cloud Service Health ran on the failing infrastructure, so the first customer update was delayed ~1 hour"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 6,
+          "factor": "Customer monitoring blind spot: customers' monitoring running on Google Cloud also failed, leaving them without a signal of the incident or its impact.",
+          "label": "valid_extra",
+          "reason": "The report states that some customers' monitoring running on Google Cloud also failed, leaving them without a signal, which worsened customer impact though it is not in the key."
+        }
+      ],
+      "counts": {
+        "match": 5,
+        "valid_extra": 1,
+        "duplicate": 0,
+        "wrong": 0
+      },
+      "total_factors": 6,
+      "recall": 1.0,
+      "precision": 1.0,
+      "missed_key_factors": []
+    },
+    {
+      "run": 4,
+      "labels": [
+        {
+          "id": 1,
+          "factor": "Untested code path shipped to production: the new Service Control quota-policy code path was never exercised during the region-by-region rollout because it required a policy change to trigger it, so the null-pointer defect went undetected until production policy data hit it.",
+          "label": "match",
+          "reason": "Describes the rollout never exercising the new code path because it required a policy change, matching K2.",
+          "key_ids": [
+            2
+          ],
+          "key_texts": [
+            "The region-by-region rollout never exercised the new code path, because it only ran when a policy change triggered it"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 2,
+          "factor": "Missing input validation on policy metadata: policy data containing unintended blank fields was accepted and processed by Service Control, which then crashed on a null pointer.",
+          "label": "match",
+          "reason": "Covers the blank-field policy data entering the system and Service Control lacking validation/handling, causing the null pointer crash (K3 and K1).",
+          "key_ids": [
+            1,
+            3
+          ],
+          "key_texts": [
+            "The new Service Control code path had no error handling for blank or invalid policy data, so a null pointer crashed the binary",
+            "A policy change containing unintended blank fields was inserted into the policy tables"
+          ],
+          "key_excluded": [
+            false,
+            false
+          ]
+        },
+        {
+          "id": 3,
+          "factor": "Policy and quota metadata replicated globally within seconds with no staged or progressive safeguard, so a single bad policy change (with blank fields) crashed Service Control in every region at once instead of being contained to one.",
+          "label": "match",
+          "reason": "Global replication of policy metadata within seconds causing simultaneous failure in all regions matches K4.",
+          "key_ids": [
+            4
+          ],
+          "key_texts": [
+            "Policy metadata replicated globally within seconds, so the bad data reached every region at once"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 4,
+          "factor": "Mass restart of Service Control tasks in large regions such as us-central1 created a herd effect that overloaded the underlying Spanner tables, prolonging recovery there to ~2h 40m; restart throttling was only applied reactively during the incident.",
+          "label": "match",
+          "reason": "The herd effect from restarting Service Control tasks overloading Spanner in us-central1 matches K5.",
+          "key_ids": [
+            5
+          ],
+          "key_texts": [
+            "Restarting Service Control tasks caused a herd effect that overloaded the Spanner table in us-central1 (no randomized exponential backoff)"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 5,
+          "factor": "Dependency of the status/communication infrastructure on the failing system: Cloud Service Health was down, delaying the first public incident report by about an hour.",
+          "label": "match",
+          "reason": "Cloud Service Health being down delaying the first incident report by about an hour matches K6.",
+          "key_ids": [
+            6
+          ],
+          "key_texts": [
+            "Cloud Service Health ran on the failing infrastructure, so the first customer update was delayed ~1 hour"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 6,
+          "factor": "Some customers' monitoring infrastructure ran on the same Google Cloud services that were failing, leaving them without a signal of the incident or its impact.",
+          "label": "valid_extra",
+          "reason": "The report states some customers' monitoring ran on failing Google Cloud services leaving them blind, which hampered their awareness of the incident though not in the key."
+        }
+      ],
+      "counts": {
+        "match": 5,
+        "valid_extra": 1,
+        "duplicate": 0,
+        "wrong": 0
+      },
+      "total_factors": 6,
+      "recall": 1.0,
+      "precision": 1.0,
+      "missed_key_factors": []
+    },
+    {
+      "run": 5,
+      "labels": [
+        {
+          "id": 1,
+          "factor": "Untested new code path: the Service Control quota policy checks were rolled out region by region but never exercised, because the path only triggers on a policy change, so the defect (null pointer on blank fields) went undetected until production.",
+          "label": "match",
+          "reason": "Describes the region-by-region rollout never exercising the new code path because it only triggered on a policy change, matching K2 (and mentions the null pointer defect).",
+          "key_ids": [
+            2
+          ],
+          "key_texts": [
+            "The region-by-region rollout never exercised the new code path, because it only ran when a policy change triggered it"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 2,
+          "factor": "Insufficient validation and defensive handling of policy data: a policy change with unintended blank fields was accepted and replicated, and the consuming code did not handle blank fields, causing a null pointer crash loop.",
+          "label": "match",
+          "reason": "Covers the policy change with unintended blank fields being inserted (K3) and the consuming code lacking handling for blank fields causing a null pointer crash (K1).",
+          "key_ids": [
+            1,
+            3
+          ],
+          "key_texts": [
+            "The new Service Control code path had no error handling for blank or invalid policy data, so a null pointer crashed the binary",
+            "A policy change containing unintended blank fields was inserted into the policy tables"
+          ],
+          "key_excluded": [
+            false,
+            false
+          ]
+        },
+        {
+          "id": 3,
+          "factor": "Global, near-instant replication of regional policy metadata with no staged or canary propagation, allowing a single bad change to reach every region within seconds and causing the crash loop to occur simultaneously in every regional deployment, making the blast radius global.",
+          "label": "match",
+          "reason": "Describes near-instant global replication of policy metadata causing the bad data to hit every region simultaneously, matching K4.",
+          "key_ids": [
+            4
+          ],
+          "key_texts": [
+            "Policy metadata replicated globally within seconds, so the bad data reached every region at once"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 4,
+          "factor": "Recovery was slowed by a herd effect when restarting Service Control tasks overloaded the underlying Spanner table in larger regions, requiring throttling and traffic rerouting.",
+          "label": "match",
+          "reason": "Describes the herd effect from restarting Service Control tasks overloading the Spanner table in larger regions, matching K5.",
+          "key_ids": [
+            5
+          ],
+          "key_texts": [
+            "Restarting Service Control tasks caused a herd effect that overloaded the Spanner table in us-central1 (no randomized exponential backoff)"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 5,
+          "factor": "Mitigation depended on a red-button kill switch that had to be deployed manually and took about 40 minutes to roll out, delaying recovery.",
+          "label": "valid_extra",
+          "reason": "The report shows the red-button took ~25 minutes to be ready and ~40 minutes to complete rollout, which supports it as something that delayed recovery, though it is not in the key."
+        },
+        {
+          "id": 6,
+          "factor": "Dependency of the status/communication infrastructure (Cloud Service Health) on the same failing Google Cloud infrastructure delayed customer notification by about an hour.",
+          "label": "match",
+          "reason": "Cloud Service Health running on the failing infrastructure delayed the first customer update by about an hour, matching K6.",
+          "key_ids": [
+            6
+          ],
+          "key_texts": [
+            "Cloud Service Health ran on the failing infrastructure, so the first customer update was delayed ~1 hour"
+          ],
+          "key_excluded": [
+            false
+          ]
+        }
+      ],
+      "counts": {
+        "match": 5,
+        "valid_extra": 1,
+        "duplicate": 0,
+        "wrong": 0
+      },
+      "total_factors": 6,
+      "recall": 1.0,
+      "precision": 1.0,
+      "missed_key_factors": []
+    }
+  ],
+  "summary": {
+    "successful_runs": 5,
+    "recall": {
+      "mean": 1.0,
+      "min": 1.0,
+      "max": 1.0
+    },
+    "precision": {
+      "mean": 1.0,
+      "min": 1.0,
+      "max": 1.0
+    }
+  }
+}

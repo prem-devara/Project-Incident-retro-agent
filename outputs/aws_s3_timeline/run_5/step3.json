@@ -1,0 +1,59 @@
+{
+  "impact_summary": "On February 28, 2017, Amazon S3 in the US-EAST-1 Region was unable to service requests while its index and placement subsystems were restarted after an incorrect command removed a larger set of servers than intended. Other AWS services in US-EAST-1 that depend on S3, including the S3 console, EC2 new instance launches, EBS snapshot data access, and AWS Lambda, were also impacted. S3 was not fully operational until 1:54PM PST, about four hours after the 9:37AM PST command, and some dependent services needed additional time afterward to clear accumulated backlogs. The Service Health Dashboard could not be updated for individual services until 11:37AM PST, so status was communicated through the @AWSCloud Twitter feed and banner text in the interim.",
+  "action_items": [
+    {
+      "action": "Modify the server-removal tooling to require confirmation of the target set and enforce a maximum removal count per invocation, rejecting commands that exceed the playbook's expected scope",
+      "owner_role": "Infrastructure tooling team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Restructure the operational playbook so capacity removal is executed in small, incremental batches with validation between steps rather than as a single bulk command",
+      "owner_role": "S3 operations team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Add pre-execution dry-run output that lists every affected server and its supported subsystems, and require explicit review of the blast radius before a removal command runs",
+      "owner_role": "S3 operations team",
+      "type": "detect",
+      "priority": "high"
+    },
+    {
+      "action": "Redesign the index and placement subsystem restart procedures to support partial or rolling restarts so that removing a portion of capacity does not force a full region-wide restart",
+      "owner_role": "S3 storage subsystems team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Profile and optimize the metadata integrity safety checks run during subsystem restart, and establish target recovery durations for each step",
+      "owner_role": "S3 storage subsystems team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Remove the dependency of the Service Health Dashboard administration console on S3 by hosting it in a separate, independently failing infrastructure",
+      "owner_role": "Service Health Dashboard engineering team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Document and rehearse a fallback customer communication process that uses the designed status mechanism in a degraded state, and define when to use alternate channels",
+      "owner_role": "Incident communications team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Map runtime dependencies of services in US-EAST-1 on S3 and identify which ones should degrade gracefully or use cached or alternate storage when S3 APIs are unavailable",
+      "owner_role": "Platform architecture team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Build and test backlog-drain procedures for dependent services so they can recover queued work in a controlled manner after an upstream outage",
+      "owner_role": "Dependent services owning teams",
+      "type": "mitigate",
+      "priority": "low"
+    }
+  ]
+}

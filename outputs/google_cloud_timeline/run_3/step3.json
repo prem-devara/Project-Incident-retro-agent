@@ -1,0 +1,65 @@
+{
+  "impact_summary": "Google Cloud, Google Workspace, and Google Security Operations products experienced increased 503 errors in external API requests globally, with customers seeing intermittent API and user-interface access issues across many services, including IAM, Cloud Storage, BigQuery, Compute Engine, Cloud Spanner, Pub/Sub, Vertex AI, Gmail, and Google Drive. The primary disruption began around 10:51 and most products were recovered by roughly 13:45 to 15:16, but us-central1 and multi-region/us took longer, and residual impact such as Dataflow backlogs and Vertex AI Online Prediction 5xx errors persisted until about 18:27. Existing streaming and IaaS resources were not affected.",
+  "action_items": [
+    {
+      "action": "Require every new code path, including feature flags and kill switches, to be exercised by automated tests that inject representative policy data (including blank and null fields) before rollout, and gate region-by-region rollout on those tests passing.",
+      "owner_role": "Service Control engineering team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Add null-safety checks and defensive handling for blank policy fields in the Service Control quota-check path so that malformed policy data is rejected or defaulted rather than causing a crash.",
+      "owner_role": "Service Control engineering team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Introduce schema and validation checks on policy changes written to the regional Spanner tables so that changes with unintended blank fields are blocked before they are replicated globally.",
+      "owner_role": "Infrastructure team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Stage global metadata replication so that policy changes propagate first to a canary region with automated health monitoring and automatic halt on crash or error-rate regression before reaching other regions.",
+      "owner_role": "Infrastructure team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Pre-stage and validate the kill switch (red-button) for new serving paths so it can be disabled in minutes via an existing, tested control path rather than requiring a rollout during the incident.",
+      "owner_role": "Service Control engineering team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Implement restart backoff, jitter, and task-creation rate limiting in Service Control so that mass restarts do not create a thundering herd against the Spanner backing store during recovery.",
+      "owner_role": "Service Control engineering team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Decouple the Cloud Service Health status page and incident publishing pipeline from the Google Cloud production control plane so that status communications remain available during a global outage.",
+      "owner_role": "Cloud Service Health team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Add guidance and a documented fallback for customers to monitor critical workloads from outside Google Cloud, and provide an out-of-band notification channel for incident signals.",
+      "owner_role": "Customer Reliability Engineering team",
+      "type": "detect",
+      "priority": "medium"
+    },
+    {
+      "action": "Add alerting on a global spike in crash-loop and 503 rates in Service Control binaries so that detection and paging occur before customer impact accumulates, and confirm that the alert fires within minutes of the onset of crashes.",
+      "owner_role": "On-call engineer",
+      "type": "detect",
+      "priority": "medium"
+    },
+    {
+      "action": "Provide documented workarounds or degraded-mode guidance for customers during control-plane outages, since no workaround was available during this incident.",
+      "owner_role": "Cloud Support team",
+      "type": "mitigate",
+      "priority": "low"
+    }
+  ]
+}

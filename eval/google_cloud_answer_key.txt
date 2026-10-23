@@ -1,0 +1,19 @@
+CONTRIBUTING FACTORS
+- The new Service Control code path had no error handling for blank or invalid policy data, so a null pointer crashed the binary
+- The region-by-region rollout never exercised the new code path, because it only ran when a policy change triggered it
+- A policy change containing unintended blank fields was inserted into the policy tables
+- Policy metadata replicated globally within seconds, so the bad data reached every region at once
+- Restarting Service Control tasks caused a herd effect that overloaded the Spanner table in us-central1 (no randomized exponential backoff)
+- Cloud Service Health ran on the failing infrastructure, so the first customer update was delayed ~1 hour
+- The change was not feature-flag protected, so it could not be enabled gradually and caught in staging (not in input)
+- Service Control failed closed: when its policy check crashed, API requests were rejected instead of served (not in input)
+
+ACTION ITEMS
+- Freeze all changes to the Service Control stack and manual policy pushes until remediated
+- Modularize Service Control so checks are isolated and fail open
+- Audit all systems that consume globally replicated data; propagate data incrementally with time to validate
+- Require all changes to critical binaries to be feature-flag protected and disabled by default
+- Improve static analysis and testing for error handling
+- Audit systems to ensure randomized exponential backoff
+- Improve automated and human external communications during incidents
+- Keep monitoring and communication infrastructure running even when Google Cloud is down

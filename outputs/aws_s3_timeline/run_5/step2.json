@@ -1,0 +1,36 @@
+{
+  "factors": [
+    {
+      "factor": "Incorrect input to a command in an established operational playbook, with the tool not limiting the scope of removal to a small set of servers",
+      "evidence": "\"One of the inputs to the command was entered incorrectly and a larger set of servers was removed than intended.\""
+    },
+    {
+      "factor": "The command removed servers supporting critical subsystems (index and placement) that were not the intended target of the operation, creating a large blast radius",
+      "evidence": "\"The servers that were removed supported two other S3 subsystems. One of these subsystems, the index subsystem, manages the metadata and location information of all S3 objects in the region.\""
+    },
+    {
+      "factor": "Removal of a significant portion of capacity forced full restarts of subsystems rather than a gradual or partial recovery",
+      "evidence": "\"Removing a significant portion of the capacity caused each of these systems to require a full restart.\""
+    },
+    {
+      "factor": "Restart and safety-check processes took longer than expected, extending the outage",
+      "evidence": "\"The process of restarting these services and running the necessary safety checks to validate the integrity of the metadata took longer than expected.\""
+    },
+    {
+      "factor": "Tight coupling between services: dependent AWS services in US-EAST-1 failed when S3 APIs became unavailable",
+      "evidence": "\"Other AWS services in the US-EAST-1 Region that rely on S3 for storage, including the S3 console, Amazon Elastic Compute Cloud (EC2) new instance launches, Amazon Elastic Block Store (EBS) volumes ... and AWS Lambda were also impacted while the S3 APIs were unavailable.\""
+    },
+    {
+      "factor": "Hidden dependency of the status dashboard administration console on S3, which prevented timely customer communication during the incident",
+      "evidence": "\"the team was unable to update the individual services' status on the AWS Service Health Dashboard (SHD) because of a dependency the SHD administration console has on Amazon S3.\""
+    },
+    {
+      "factor": "Communication fallback relied on ad hoc channels (Twitter feed and banner text) rather than the designed status mechanism",
+      "evidence": "\"Instead, the AWS Twitter feed (@AWSCloud) and SHD banner text were used to communicate status until the individual services' status could be updated on the SHD.\""
+    },
+    {
+      "factor": "Accumulated backlog in dependent services extended recovery time after S3 was restored",
+      "evidence": "\"Some of these services had accumulated a backlog of work during the S3 disruption and required additional time to fully recover.\""
+    }
+  ]
+}

@@ -1,0 +1,173 @@
+{
+  "factor_verdicts": [
+    {
+      "id": 1,
+      "verdict": "keep",
+      "reason": "Report states the new code path was never exercised during the regional rollout, so the defect reached production undetected."
+    },
+    {
+      "id": 2,
+      "verdict": "keep",
+      "reason": "Report states the policy data contained unintended blank fields that were accepted and triggered the null pointer crash loop.",
+      "new_wording": "Insufficient validation and defensive handling of policy data: a policy change with unintended blank fields was accepted and replicated, and the consuming code did not handle blank fields, causing a null pointer crash loop."
+    },
+    {
+      "id": 3,
+      "verdict": "keep",
+      "reason": "Report states metadata was replicated globally within seconds, letting one bad change reach all regions at once.",
+      "new_wording": "Global, near-instant replication of regional policy metadata with no staged or canary propagation, allowing a single bad change to reach every region within seconds and causing the crash loop to occur simultaneously in every regional deployment, making the blast radius global."
+    },
+    {
+      "id": 4,
+      "verdict": "merge with #3",
+      "reason": "The global simultaneous crash is the same underlying issue as global instant replication; it is the consequence of #3."
+    },
+    {
+      "id": 5,
+      "verdict": "keep",
+      "reason": "Report states restart herd effect overloaded the Spanner table in larger regions, requiring throttling and extending us-central1 recovery to ~2h40m."
+    },
+    {
+      "id": 6,
+      "verdict": "keep",
+      "reason": "Report shows the red-button took ~25 minutes to become ready and ~40 minutes to finish rolling out, delaying recovery."
+    },
+    {
+      "id": 7,
+      "verdict": "keep",
+      "reason": "Report explicitly states the first Cloud Service Health post was ~1h in because that infrastructure was down in the outage."
+    },
+    {
+      "id": 8,
+      "verdict": "remove",
+      "reason": "Customers' own monitoring failing did not cause the incident or slow Google's recovery; it is customer impact and is not a contributing factor in this system."
+    },
+    {
+      "id": 9,
+      "verdict": "remove",
+      "reason": "Cited evidence only describes customer impact; the report never says the system failed to fail open, so the claim is speculation."
+    }
+  ],
+  "factors": [
+    {
+      "factor": "Untested new code path: the Service Control quota policy checks were rolled out region by region but never exercised, because the path only triggers on a policy change, so the defect (null pointer on blank fields) went undetected until production.",
+      "evidence": "\"This code change and binary release went through a region by region rollout, but the new code path was never exercised during this rollout because it needed a policy change to trigger it.\""
+    },
+    {
+      "factor": "Insufficient validation and defensive handling of policy data: a policy change with unintended blank fields was accepted and replicated, and the consuming code did not handle blank fields, causing a null pointer crash loop.",
+      "evidence": "\"This policy data contained unintended blank fields... This pulled in blank fields for this policy change and exercised the new code path, which hit a null pointer and caused the binaries to go into a crash loop.\""
+    },
+    {
+      "factor": "Global, near-instant replication of regional policy metadata with no staged or canary propagation, allowing a single bad change to reach every region within seconds and causing the crash loop to occur simultaneously in every regional deployment, making the blast radius global.",
+      "evidence": "\"This metadata was replicated globally within seconds.\" | \"This occurred globally, in each regional deployment.\""
+    },
+    {
+      "factor": "Recovery was slowed by a herd effect when restarting Service Control tasks overloaded the underlying Spanner table in larger regions, requiring throttling and traffic rerouting.",
+      "evidence": "\"as Service Control tasks restarted, it created a herd effect on the underlying infrastructure it depends on (the Spanner table), overloading that infrastructure.\""
+    },
+    {
+      "factor": "Mitigation depended on a red-button kill switch that had to be deployed manually and took about 40 minutes to roll out, delaying recovery.",
+      "evidence": "\"Within 40 minutes of the incident, the red-button rollout was completed, and recovery started across regions\""
+    },
+    {
+      "factor": "Dependency of the status/communication infrastructure (Cloud Service Health) on the same failing Google Cloud infrastructure delayed customer notification by about an hour.",
+      "evidence": "\"The first incident report was posted to Cloud Service Health ~1h after the start of the crashes, because the Cloud Service Health infrastructure was down due to this outage.\""
+    }
+  ],
+  "action_items": [
+    {
+      "action": "Require every new code path, including dormant or policy-triggered paths, to be exercised by automated tests with representative and malformed policy data before regional rollout begins.",
+      "owner_role": "Service Control engineering team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Add strict schema validation and required-field checks on policy data at write time in the Spanner tables, rejecting changes with blank fields before they are replicated.",
+      "owner_role": "Service Control engineering team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Make Service Control consumers handle null or blank policy fields defensively so malformed data degrades to a safe default instead of causing a crash loop.",
+      "owner_role": "Service Control engineering team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Implement staged, canary-based propagation of policy and metadata changes so a change reaches a small set of regions first and is halted automatically if error rates rise, instead of replicating globally within seconds.",
+      "owner_role": "Infrastructure team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Replace the manually deployed red-button kill switch with an automated or pre-deployed mechanism that can disable a serving path within minutes, and test it regularly.",
+      "owner_role": "Service Control engineering team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Add restart backoff, jittered startup, and load-shedding for Service Control tasks so that mass restarts do not overload the underlying Spanner table in large regions.",
+      "owner_role": "Infrastructure team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Host Cloud Service Health and status-publishing infrastructure on systems independent of Google Cloud's production control plane, so incident communication is not blocked by the outage it reports.",
+      "owner_role": "Cloud Service Health team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Define a target for initial customer incident notification and enforce it through paging and escalation rules for the communications team, so that the first public notice is not delayed by an hour.",
+      "owner_role": "Incident management and communications team",
+      "type": "detect",
+      "priority": "medium"
+    },
+    {
+      "action": "Add alerting on crash-loop rates and 503 error spikes per region that fires within minutes of onset, so the on-call team is paged before customer-visible impact spreads.",
+      "owner_role": "Service Control engineering team",
+      "type": "detect",
+      "priority": "medium"
+    },
+    {
+      "action": "Document and run recovery drills for large-region herd effects and multi-region database failover, including us-central1, to shorten time-to-recovery for future incidents.",
+      "owner_role": "Site reliability engineering team",
+      "type": "mitigate",
+      "priority": "low"
+    }
+  ],
+  "changes": [
+    {
+      "change": "Reworded #2: Insufficient validation and defensive handling of policy data: a policy change with unintended blank fields was accepted and replicated, and the consuming code did not handle blank fields, causing a null pointer crash loop.",
+      "reason": "Report states the policy data contained unintended blank fields that were accepted and triggered the null pointer crash loop."
+    },
+    {
+      "change": "Reworded #3: Global, near-instant replication of regional policy metadata with no staged or canary propagation, allowing a single bad change to reach every region within seconds and causing the crash loop to occur simultaneously in every regional deployment, making the blast radius global.",
+      "reason": "Report states metadata was replicated globally within seconds, letting one bad change reach all regions at once."
+    },
+    {
+      "change": "Merged #4 into #3: Crash loop occurred simultaneously in every regional deployment, so the blast radius was global rather than contained to one region.",
+      "reason": "The global simultaneous crash is the same underlying issue as global instant replication; it is the consequence of #3."
+    },
+    {
+      "change": "Removed #8: Customers' own monitoring ran on Google Cloud and failed alongside the outage, leaving them without a signal of the incident or its impact.",
+      "reason": "Customers' own monitoring failing did not cause the incident or slow Google's recovery; it is customer impact and is not a contributing factor in this system."
+    },
+    {
+      "change": "Removed #9: Lack of a fail-safe default: the policy check system did not fail open or degrade gracefully when policy data was malformed, so API requests returned errors broadly.",
+      "reason": "Cited evidence only describes customer impact; the report never says the system failed to fail open, so the claim is speculation."
+    },
+    {
+      "change": "Removed the action to design fail-open or graceful-degradation behavior in the policy check path.",
+      "reason": "It only addressed factor #9, which was removed as unsupported speculation; the defensive-handling action already covers the crash-loop cause."
+    },
+    {
+      "change": "Removed the action to publish guidance and tooling for customer external multi-cloud monitoring.",
+      "reason": "It only addressed factor #8, which was removed because customer monitoring did not contribute to the failure or slow recovery."
+    },
+    {
+      "change": "Changed the owner_role of the crash-loop/503 alerting action from 'On-call engineer' to 'Service Control engineering team'.",
+      "reason": "Owner role must be a team or role responsible for delivery; a single on-call engineer role is not an appropriate owner for building alerting and risks individual blame."
+    }
+  ]
+}

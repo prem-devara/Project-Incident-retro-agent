@@ -1,0 +1,59 @@
+{
+  "impact_summary": "Google Cloud, Google Workspace, and Google Security Operations products experienced increased 503 errors in external API requests on June 12, 2025, beginning around 10:51 Pacific. Customers had intermittent API and user-interface access issues across many services, including IAM, Cloud Storage, BigQuery, Compute Engine, Cloud Spanner, Pub/Sub, Vertex AI, and Workspace products such as Gmail and Google Drive. Recovery was staged by region, with us-central1 and multi-region/us taking until about 14:00 to mitigate, and full recovery of all services was confirmed at 18:27, with some residual backlogs lingering for hours after the primary issue was mitigated.",
+  "action_items": [
+    {
+      "action": "Require progressive, region-by-region staged rollout for policy and metadata changes to Service Control, with automated health-based halt criteria, instead of near-instant global replication.",
+      "owner_role": "Service Control team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Add input validation in Service Control that rejects or safely defaults policy metadata containing blank or missing required fields before it reaches the quota-check code path.",
+      "owner_role": "Service Control team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Establish a mechanism to exercise new code paths (such as synthetic or canary policy changes) during rollout, so feature paths gated behind data triggers are tested before global release.",
+      "owner_role": "Service Control team",
+      "type": "detect",
+      "priority": "high"
+    },
+    {
+      "action": "Pre-stage the red-button kill switch so it can be activated automatically or with a single one-step control, rather than requiring manual deployment during the incident.",
+      "owner_role": "Infrastructure team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Implement restart backoff and jittered task startup in Service Control so that mass restarts do not create a herd effect against the underlying Spanner tables, and add load-shedding limits for regional recovery.",
+      "owner_role": "Service Control team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Move the Cloud Service Health status page and incident communication infrastructure off the dependency chain of the primary Google Cloud control plane, so that status updates remain available during major outages.",
+      "owner_role": "Cloud Service Health team",
+      "type": "detect",
+      "priority": "high"
+    },
+    {
+      "action": "Provide customers with an out-of-band incident notification channel, such as a multi-provider status signal or a pre-established alerting path independent of Google Cloud, to reduce reliance on customer monitoring hosted on the affected platform.",
+      "owner_role": "Customer Communications team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Isolate the shared API management and control plane into more independent failure domains so that a fault in one service's policy path cannot propagate across Google Cloud and Workspace products.",
+      "owner_role": "API Management / Control Plane team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Create runbooks and capacity tooling for draining and clearing backlogs in downstream services (Dataflow, Vertex AI Online Prediction) to shorten residual impact after primary mitigation.",
+      "owner_role": "Dataflow and Vertex AI on-call teams",
+      "type": "mitigate",
+      "priority": "low"
+    }
+  ]
+}

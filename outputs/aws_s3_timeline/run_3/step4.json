@@ -1,0 +1,146 @@
+{
+  "factor_verdicts": [
+    {
+      "id": 1,
+      "verdict": "keep",
+      "reason": "Report states one mistyped input removed far more servers than intended, which triggered the outage; the lack of a guard is a systemic gap.",
+      "new_wording": "The server-removal command lacked safeguards against input errors: a single incorrect input removed a much larger set of servers than intended, and no guard (confirmation, capacity threshold, or blast-radius check) limited the removal."
+    },
+    {
+      "id": 2,
+      "verdict": "remove",
+      "reason": "Speculative: the report only says the playbook was established and the command was mis-entered; it gives no evidence the playbook permitted or failed to constrain removals of index/placement servers."
+    },
+    {
+      "id": 3,
+      "verdict": "keep",
+      "reason": "Report says removing significant capacity forced a full restart of the index and placement subsystems, turning a capacity loss into a total outage.",
+      "new_wording": "The index and placement subsystems could not tolerate the removal of a significant portion of their capacity without a full restart, so the capacity loss caused a complete S3 request outage rather than a degraded state."
+    },
+    {
+      "id": 4,
+      "verdict": "keep",
+      "reason": "Report states restart and metadata integrity safety checks took longer than expected, directly extending the outage."
+    },
+    {
+      "id": 5,
+      "verdict": "keep",
+      "reason": "Report documents dependency of placement on index, index on all request types, and other AWS services on S3, which widened the failure's impact."
+    },
+    {
+      "id": 6,
+      "verdict": "keep",
+      "reason": "Report states the SHD admin console depended on S3, so status could not be updated for two hours, impairing communication.",
+      "new_wording": "The Service Health Dashboard administration console had a hidden dependency on S3, so per-service status could not be updated until 11:37AM PST; this degraded customer communication, which relied on fallback channels (Twitter feed and SHD banner text) in the meantime."
+    },
+    {
+      "id": 7,
+      "verdict": "merge with #6",
+      "reason": "Same underlying issue as #6; the fallback channels were a consequence of the SHD dependency, and the report presents them as the mitigation used."
+    }
+  ],
+  "factors": [
+    {
+      "factor": "The server-removal command lacked safeguards against input errors: a single incorrect input removed a much larger set of servers than intended, and no guard (confirmation, capacity threshold, or blast-radius check) limited the removal.",
+      "evidence": "\"One of the inputs to the command was entered incorrectly and a larger set of servers was removed than intended.\""
+    },
+    {
+      "factor": "The index and placement subsystems could not tolerate the removal of a significant portion of their capacity without a full restart, so the capacity loss caused a complete S3 request outage rather than a degraded state.",
+      "evidence": "\"Removing a significant portion of the capacity caused each of these systems to require a full restart. While these subsystems were being restarted, S3 was unable to service requests.\""
+    },
+    {
+      "factor": "Restart and recovery procedures were slow because the safety checks validating metadata integrity took longer than expected, extending the outage duration.",
+      "evidence": "\"The process of restarting these services and running the necessary safety checks to validate the integrity of the metadata took longer than expected.\""
+    },
+    {
+      "factor": "Tight coupling and lack of isolation: the index subsystem is required by the placement subsystem and by all S3 request types, and many dependent AWS services rely on S3 in the same region, so the failure cascaded widely.",
+      "evidence": "\"The placement subsystem, manages allocation of new storage and requires the index subsystem to be functioning properly to correctly operate.\" and \"Other AWS services in the US-EAST-1 Region that rely on S3 for storage... were also impacted while the S3 APIs were unavailable.\""
+    },
+    {
+      "factor": "The Service Health Dashboard administration console had a hidden dependency on S3, so per-service status could not be updated until 11:37AM PST; this degraded customer communication, which relied on fallback channels (Twitter feed and SHD banner text) in the meantime.",
+      "evidence": "\"the team was unable to update the individual services' status on the AWS Service Health Dashboard (SHD) because of a dependency the SHD administration console has on Amazon S3.\" | \"Instead, the AWS Twitter feed (@AWSCloud) and SHD banner text were used to communicate status until the individual services' status could be updated on the SHD.\""
+    }
+  ],
+  "action_items": [
+    {
+      "action": "Modify the server-removal tooling to require explicit confirmation of the full list of affected servers and their subsystem assignments, and reject any removal that exceeds a defined capacity threshold without a separate approval step.",
+      "owner_role": "S3 team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Add a dry-run mode to the server-removal tooling that reports the blast radius (affected servers and their subsystem assignments) of a command before execution, and update the capacity-removal playbook to require running it before every removal.",
+      "owner_role": "S3 operations team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Re-architect the index and placement subsystems to tolerate removal of a significant portion of capacity via incremental restarts or redundancy, eliminating the need for a full restart that causes complete request failure.",
+      "owner_role": "S3 storage engineering team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Optimize the metadata integrity safety checks and the subsystem restart process so recovery time is measured, bounded, and tested under realistic index sizes.",
+      "owner_role": "S3 storage engineering team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Reduce the coupling between the index and placement subsystems and provide cell-based isolation so a failure in one partition does not cascade to all S3 request types in the region.",
+      "owner_role": "S3 architecture team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Remove the dependency of the Service Health Dashboard administration console on S3 by hosting it in an independent region or storage system, and verify this with periodic failover tests.",
+      "owner_role": "Infrastructure team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Create a runbook and pre-approved communication templates for per-service status updates, so customer notifications can be issued promptly through fallback channels during a dashboard outage.",
+      "owner_role": "Incident communications team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Add alerting on the rate and scope of server removals and on subsystem health for index and placement, so unexpected capacity loss is detected immediately rather than through customer-facing impact.",
+      "owner_role": "Monitoring and observability team",
+      "type": "detect",
+      "priority": "medium"
+    },
+    {
+      "action": "Identify dependent AWS services in US-EAST-1 that rely on S3 and document their failure modes, then build graceful degradation or backlog-drain procedures to reduce recovery time after an S3 outage.",
+      "owner_role": "Dependent services engineering teams",
+      "type": "mitigate",
+      "priority": "low"
+    }
+  ],
+  "changes": [
+    {
+      "change": "Reworded #1: The server-removal command lacked safeguards against input errors: a single incorrect input removed a much larger set of servers than intended, and no guard (confirmation, capacity threshold, or blast-radius check) limited the removal.",
+      "reason": "Report states one mistyped input removed far more servers than intended, which triggered the outage; the lack of a guard is a systemic gap."
+    },
+    {
+      "change": "Removed #2: The operational playbook/procedure allowed a capacity-removal action affecting critical subsystems to be executed in a way that could remove servers supporting index and placement subsystems, rather than constraining the action to the intended billing subsystem.",
+      "reason": "Speculative: the report only says the playbook was established and the command was mis-entered; it gives no evidence the playbook permitted or failed to constrain removals of index/placement servers."
+    },
+    {
+      "change": "Reworded #3: The index and placement subsystems could not tolerate the removal of a significant portion of their capacity without a full restart, so the capacity loss caused a complete S3 request outage rather than a degraded state.",
+      "reason": "Report says removing significant capacity forced a full restart of the index and placement subsystems, turning a capacity loss into a total outage."
+    },
+    {
+      "change": "Reworded #6: The Service Health Dashboard administration console had a hidden dependency on S3, so per-service status could not be updated until 11:37AM PST; this degraded customer communication, which relied on fallback channels (Twitter feed and SHD banner text) in the meantime.",
+      "reason": "Report states the SHD admin console depended on S3, so status could not be updated for two hours, impairing communication."
+    },
+    {
+      "change": "Merged #7 into #6: Customer communication was degraded during the incident, relying on fallback channels (Twitter and banner text) rather than per-service status updates.",
+      "reason": "Same underlying issue as #6; the fallback channels were a consequence of the SHD dependency, and the report presents them as the mitigation used."
+    },
+    {
+      "change": "Rewrote the second action item to drop the playbook step validating that targets do not support index/placement subsystems, keeping the dry-run blast-radius mode and tying it to the playbook.",
+      "reason": "The original partly addressed factor #2, which was removed as speculative; the dry-run capability is still supported by factor #1."
+    }
+  ]
+}

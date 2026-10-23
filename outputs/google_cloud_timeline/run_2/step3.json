@@ -1,0 +1,65 @@
+{
+  "impact_summary": "Google Cloud, Google Workspace, and Google Security Operations products experienced increased 503 errors in external API requests and intermittent API and user-interface access issues across global regions beginning around 10:45 on June 12, 2025. Many products were affected, including IAM, Cloud Storage, BigQuery, Compute Engine, Cloud Spanner, Pub/Sub, Vertex AI, and Gmail, and some customers also lost monitoring visibility. Recovery was staged: most products were fully recovered by about 13:45, us-central1 took up to roughly 2h 40m to fully resolve, and residual impacts such as Dataflow backlogs and Vertex AI Online Prediction 5xx errors persisted until about 18:27.",
+  "action_items": [
+    {
+      "action": "Require all new Service Control code paths, including feature-flagged or policy-triggered paths, to be exercised by automated tests or synthetic policy injection during every regional rollout, before the path can activate in production.",
+      "owner_role": "Service Control engineering team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Add strict input validation and null-handling to policy-reading code so that blank or malformed policy fields are rejected or defaulted safely instead of causing a null pointer crash.",
+      "owner_role": "Service Control engineering team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Change global replication of policy and quota configuration to use staged, region-by-region propagation with automated schema validation and canary checks, so a bad config cannot reach all regions within seconds.",
+      "owner_role": "Infrastructure team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Ensure kill switches for new serving paths take effect without requiring a full binary rollout, for example via a dynamically read flag that is pre-deployed and tested.",
+      "owner_role": "Service Control engineering team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Implement randomized restart jitter, exponential backoff, and admission control for Service Control tasks so that mass restarts cannot overload the backing Spanner tables during recovery.",
+      "owner_role": "Infrastructure team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Create a runbook and tooling for throttling task creation and rerouting traffic to multi-regional databases, and rehearse it in large regions such as us-central1 before the next incident.",
+      "owner_role": "On-call engineer",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Move the Cloud Service Health status page and its incident-posting path onto infrastructure that is independent of Google Cloud's control plane, with a fallback channel for publishing incident updates.",
+      "owner_role": "Cloud Service Health team",
+      "type": "detect",
+      "priority": "high"
+    },
+    {
+      "action": "Provide customers with an out-of-band status feed and guidance on monitoring that does not depend on the affected Google Cloud infrastructure, so they receive incident signals during control-plane outages.",
+      "owner_role": "Customer Reliability team",
+      "type": "detect",
+      "priority": "medium"
+    },
+    {
+      "action": "Define and publish a customer-side workaround or mitigation guidance template for control-plane incidents, and set a target for when workarounds are communicated during future incidents.",
+      "owner_role": "Incident Communications team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Add alerting on sudden crash-loop rates and null-pointer panics in Service Control binaries, with a global-blast-radius check that pages on-call immediately when multiple regions degrade at once.",
+      "owner_role": "SRE team",
+      "type": "detect",
+      "priority": "medium"
+    }
+  ]
+}

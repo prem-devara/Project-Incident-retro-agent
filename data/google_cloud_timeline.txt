@@ -1,0 +1,40 @@
+Google Cloud service disruption, June 12, 2025 (all times US/Pacific)
+
+Summary
+Google Cloud, Google Workspace and Google Security Operations products experienced increased 503 errors in external API requests, impacting customers. Regions/Zones: Global.
+
+System setup
+Google and Google Cloud APIs are served through Google API management and control planes. Distributed regionally, these management and control planes are responsible for ensuring each API request that comes in is authorized, has the policy and appropriate checks (like quota) to meet their endpoints. The core binary that is part of this policy check system is known as Service Control. Service Control is a regional service that has a regional datastore that it reads quota and policy information from. This datastore metadata gets replicated almost instantly globally to manage quota policies for Google Cloud and customers.
+
+May 29, 2025
+A new feature was added to Service Control for additional quota policy checks. This code change and binary release went through a region by region rollout, but the new code path was never exercised during this rollout because it needed a policy change to trigger it. The code change came with a red-button to turn off that particular policy serving path.
+
+June 12, 2025
+~10:45 A policy change was inserted into the regional Spanner tables that Service Control uses for policies. This metadata was replicated globally within seconds. This policy data contained unintended blank fields. Service Control then regionally exercised quota checks on policies in each regional datastore. This pulled in blank fields for this policy change and exercised the new code path, which hit a null pointer and caused the binaries to go into a crash loop. This occurred globally, in each regional deployment.
+
+~10:47 Within 2 minutes, the Site Reliability Engineering team was triaging the incident.
+~10:55 Within 10 minutes, the cause was identified and the red-button (to disable the serving path) was being put in place.
+~11:10 The red-button was ready to roll out, ~25 minutes from the start of the incident.
+~11:25 Within 40 minutes of the incident, the red-button rollout was completed, and recovery started across regions, starting with the smaller ones first.
+
+In some larger regions, such as us-central1, as Service Control tasks restarted, it created a herd effect on the underlying infrastructure it depends on (the Spanner table), overloading that infrastructure. The team throttled task creation to minimize the impact on the underlying infrastructure and routed traffic to multi-regional databases to reduce the load. It took up to ~2h 40 mins to fully resolve in us-central1.
+
+Communication: The first incident report was posted to Cloud Service Health ~1h after the start of the crashes, because the Cloud Service Health infrastructure was down due to this outage. For some customers, the monitoring infrastructure they had running on Google Cloud was also failing, leaving them without a signal of the incident or an understanding of the impact.
+
+Status updates
+11:46 Multiple GCP products are experiencing service issues beginning at 10:51. Engineering team continues to investigate. Workaround: none at this time.
+12:09 Issue is recovered in some locations. No ETA on full mitigation.
+12:30 All locations except us-central1 have fully recovered. us-central1 is mostly recovered.
+12:41 Underlying dependency is recovered in all locations except us-central1. Customers still experiencing varying degrees of impact on individual Google Cloud products.
+13:16 Infrastructure has recovered in all regions except us-central1. Customers still experiencing issues on us-central1 and multi-region/us.
+14:00 Mitigation implemented for us-central1 and multi-region/us; signs of recovery.
+14:23 Most Google Cloud products have confirmed full service recovery. A few services still see residual impact.
+15:16 Most Google Cloud products fully recovered as of 13:45.
+16:13 Residual impact: Dataflow backlog clearing gradually; Vertex AI Online Prediction elevated 5xx errors on some Model Garden models; Personalized Service Health updates delayed.
+17:06 Dataflow backlog cleared in all regions except us-central1.
+17:33 Personalized Service Health resolved. Dataflow fully resolved as of 17:10. Only remaining impact is Vertex AI Online Prediction.
+17:59 Vertex AI Model Garden 5xx errors resolved as of 17:05; serving back to normal except europe-west1 and asia-southeast1.
+18:27 Vertex AI Online Prediction fully recovered as of 18:18. All services fully recovered.
+
+Customer impact
+Customers had intermittent API and user-interface access issues to the impacted services. Existing streaming and IaaS resources were not impacted. Affected products included Identity and Access Management, Cloud Storage, BigQuery, Compute Engine, Cloud Run, Cloud Spanner, Cloud SQL, Pub/Sub, Cloud Monitoring, Cloud Logging, Vertex AI, the Google Cloud Console and many other Google Cloud products, plus Google Workspace products including Gmail, Google Drive, Google Docs, Google Meet, Google Calendar and Google Chat. Several products had residual impact (e.g. backlogs) for some time after the primary issue was mitigated.

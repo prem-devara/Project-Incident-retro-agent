@@ -1,0 +1,48 @@
+{
+  "events": [
+    {
+      "time": "February 28, 2017, 9:37AM PST",
+      "description": "An authorized S3 team member executed a command intended to remove a small number of servers for an S3 subsystem used by the billing process; an input was entered incorrectly and a larger set of servers was removed than intended."
+    },
+    {
+      "time": "February 28, 2017, shortly after 9:37AM PST (implied by removal of capacity)",
+      "description": "Removal of a significant portion of capacity caused the index and placement subsystems to require a full restart, and S3 became unable to service requests."
+    },
+    {
+      "time": "February 28, 2017, during the S3 disruption (no exact time given)",
+      "description": "Other AWS services in US-EAST-1 relying on S3 were impacted, including the S3 console, EC2 new instance launches, EBS volumes needing S3 snapshot data, and AWS Lambda."
+    },
+    {
+      "time": "February 28, 2017, during subsystem restarts (no exact time given)",
+      "description": "The restart process and safety checks to validate metadata integrity took longer than expected; the index subsystem was the first of the two to be restarted."
+    },
+    {
+      "time": "February 28, 2017, from the beginning of the event until 11:37AM PST",
+      "description": "The team could not update service status on the AWS Service Health Dashboard due to its dependency on S3, so the AWS Twitter feed (@AWSCloud) and SHD banner text were used for communication."
+    },
+    {
+      "time": "February 28, 2017, 11:37AM PST",
+      "description": "The team regained the ability to update individual services' status on the Service Health Dashboard."
+    },
+    {
+      "time": "February 28, 2017, 12:26PM PST",
+      "description": "The index subsystem activated enough capacity to begin servicing S3 GET, LIST, and DELETE requests."
+    },
+    {
+      "time": "February 28, 2017, 1:18PM PST",
+      "description": "The index subsystem was fully recovered and GET, LIST, and DELETE APIs were functioning normally."
+    },
+    {
+      "time": "February 28, 2017, 1:18PM PST onward (when index subsystem was functional)",
+      "description": "The placement subsystem began recovery, as it requires the index subsystem to be functioning properly."
+    },
+    {
+      "time": "February 28, 2017, 1:54PM PST",
+      "description": "The placement subsystem finished recovery and S3 was operating normally."
+    },
+    {
+      "time": "February 28, 2017, after S3 recovery (no exact time given)",
+      "description": "Other impacted AWS services began recovering, with some requiring additional time to work through accumulated backlogs."
+    }
+  ]
+}

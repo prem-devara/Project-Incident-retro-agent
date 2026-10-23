@@ -1,0 +1,44 @@
+{
+  "events": [
+    {
+      "time": "9:37AM PST",
+      "description": "An authorized S3 team member executed a command using an established playbook to remove a small number of servers for an S3 subsystem used by the billing process; an input was entered incorrectly and a larger set of servers was removed than intended."
+    },
+    {
+      "time": "Shortly after 9:37AM PST (during the removal)",
+      "description": "The removed servers supported the index subsystem and the placement subsystem, causing removal of a significant portion of capacity, which required both subsystems to undergo a full restart."
+    },
+    {
+      "time": "During the restart (after 9:37AM PST)",
+      "description": "S3 was unable to service requests, and other AWS services in US-EAST-1 relying on S3 (S3 console, EC2 new instance launches, EBS volumes needing S3 snapshot data, and AWS Lambda) were impacted."
+    },
+    {
+      "time": "From the beginning of the event until 11:37AM PST",
+      "description": "The team was unable to update individual service status on the AWS Service Health Dashboard due to a dependency on Amazon S3; status was communicated via the @AWSCloud Twitter feed and SHD banner text."
+    },
+    {
+      "time": "11:37AM PST",
+      "description": "The team regained the ability to update individual services' status on the AWS Service Health Dashboard."
+    },
+    {
+      "time": "12:26PM PST",
+      "description": "The index subsystem activated enough capacity to begin servicing S3 GET, LIST, and DELETE requests."
+    },
+    {
+      "time": "1:18PM PST",
+      "description": "The index subsystem was fully recovered and GET, LIST, and DELETE APIs were functioning normally."
+    },
+    {
+      "time": "1:18PM PST onward (after index subsystem functional)",
+      "description": "The placement subsystem began recovery, as the S3 PUT API required it."
+    },
+    {
+      "time": "1:54PM PST",
+      "description": "The placement subsystem finished recovery and S3 was operating normally."
+    },
+    {
+      "time": "After S3 recovery",
+      "description": "Other impacted AWS services began recovering, with some requiring additional time to clear an accumulated backlog of work."
+    }
+  ]
+}

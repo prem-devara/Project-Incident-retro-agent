@@ -1,0 +1,53 @@
+{
+  "impact_summary": "On February 28, 2017, Amazon S3 in the US-EAST-1 Region was unable to service requests from shortly after 9:37AM PST until 1:54PM PST, when the placement subsystem finished recovery and S3 was operating normally. Other AWS services in the region that depend on S3, including the S3 console, EC2 new instance launches, EBS snapshot-dependent volumes, and AWS Lambda, were also impaired, and some required additional time after S3 recovered to clear accumulated backlogs. The Service Health Dashboard could not be updated for individual services until 11:37AM PST, so status was communicated through the @AWSCloud Twitter feed and banner text.",
+  "action_items": [
+    {
+      "action": "Modify the server-removal playbook tooling to validate inputs against an explicit allowlist of target servers and require confirmation of the total count before execution, rejecting commands that exceed the intended scope.",
+      "owner_role": "S3 operations tooling team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Restructure capacity-removal playbooks so that each command can only affect servers belonging to a single subsystem, and make cross-subsystem capacity dependencies explicit in playbook design.",
+      "owner_role": "S3 infrastructure team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Decouple the index and placement subsystems' capacity pools so that loss of capacity in one pool does not require a full restart of the other subsystem.",
+      "owner_role": "S3 architecture team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Build and regularly exercise a fast-restart path with metadata integrity checks sized and parallelized for region-scale failures, and measure restart time against an agreed target.",
+      "owner_role": "S3 storage reliability team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Remove the Service Health Dashboard's dependency on S3 by hosting its status-update console and data in a separate failure domain outside the region it reports on.",
+      "owner_role": "AWS Service Health Dashboard team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Audit dependent AWS services in US-EAST-1 for hard dependencies on S3 and implement graceful degradation or cached fallbacks for critical control-plane operations such as EC2 instance launches and Lambda invocations.",
+      "owner_role": "Cross-service reliability working group",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Add alerting on sudden drops in S3 subsystem capacity so that unexpected large-scale removals are detected and paged to on-call engineers immediately.",
+      "owner_role": "S3 on-call and monitoring team",
+      "type": "detect",
+      "priority": "medium"
+    },
+    {
+      "action": "Instrument dependent services to track work backlog accumulated during upstream outages and prioritize backlog drain procedures in their recovery runbooks.",
+      "owner_role": "Dependent service owners",
+      "type": "mitigate",
+      "priority": "low"
+    }
+  ]
+}

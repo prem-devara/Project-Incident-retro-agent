@@ -1,0 +1,155 @@
+{
+  "factor_verdicts": [
+    {
+      "id": 1,
+      "verdict": "keep",
+      "reason": "Report states the new code path was never exercised during rollout, so the defect went undetected until global impact."
+    },
+    {
+      "id": 2,
+      "verdict": "keep",
+      "reason": "Report confirms blank policy fields were consumed and triggered a null pointer crash loop; lack of validation/guarding is supported."
+    },
+    {
+      "id": 3,
+      "verdict": "keep",
+      "reason": "Report states metadata replicated globally within seconds, letting one bad change reach all regions; this is the key reason the failure was global.",
+      "new_wording": "Policy and metadata changes replicated globally within seconds with no staged or progressive rollout, so a single bad change reached every regional deployment at once and the crash loop was not contained to a single region."
+    },
+    {
+      "id": 4,
+      "verdict": "merge with #3",
+      "reason": "Simultaneous global failure is the consequence of the same near-instant global replication issue described in #3."
+    },
+    {
+      "id": 5,
+      "verdict": "keep",
+      "reason": "Report documents herd effect overloading Spanner and extending us-central1 recovery to about 2h 40m."
+    },
+    {
+      "id": 6,
+      "verdict": "remove",
+      "reason": "Report shows the red-button was prepared within ~25 minutes and rolled out in 40 minutes, so it limited damage; the claim that it was a problem is not supported."
+    },
+    {
+      "id": 7,
+      "verdict": "keep",
+      "reason": "Report explicitly says the status page was down due to the outage, delaying the first public report by ~1h."
+    },
+    {
+      "id": 8,
+      "verdict": "remove",
+      "reason": "Customer-side monitoring failures are not within the service's control and the report offers no evidence they slowed recovery; this restates a customer impact and overlaps with #7's communication gap."
+    },
+    {
+      "id": 9,
+      "verdict": "keep",
+      "reason": "Report shows the shared API management/control plane is a common dependency and lists the many affected products, supporting wide blast radius."
+    },
+    {
+      "id": 10,
+      "verdict": "keep",
+      "reason": "Report status updates show Dataflow, Vertex AI and Personalized Service Health impact continued hours after primary mitigation."
+    }
+  ],
+  "factors": [
+    {
+      "factor": "Untested code path: the new Service Control quota-check feature was never exercised during the region-by-region rollout because it required a policy change to trigger it, so the null-pointer defect went undetected before global impact.",
+      "evidence": "\"This code change and binary release went through a region by region rollout, but the new code path was never exercised during this rollout because it needed a policy change to trigger it.\""
+    },
+    {
+      "factor": "Missing input validation on policy data: Service Control consumed policy metadata containing unintended blank fields without rejecting or guarding against them, causing a null pointer dereference.",
+      "evidence": "\"This policy data contained unintended blank fields... This pulled in blank fields for this policy change and exercised the new code path, which hit a null pointer and caused the binaries to go into a crash loop.\""
+    },
+    {
+      "factor": "Policy and metadata changes replicated globally within seconds with no staged or progressive rollout, so a single bad change reached every regional deployment at once and the crash loop was not contained to a single region.",
+      "evidence": "\"This metadata was replicated globally within seconds.\" | \"This occurred globally, in each regional deployment.\""
+    },
+    {
+      "factor": "Recovery was slowed by a herd effect when restarted Service Control tasks in large regions overloaded the underlying Spanner table, requiring throttling and rerouting and extending recovery in us-central1 to about 2h 40m.",
+      "evidence": "\"As Service Control tasks restarted, it created a herd effect on the underlying infrastructure it depends on (the Spanner table), overloading that infrastructure.\" and \"It took up to ~2h 40 mins to fully resolve in us-central1.\""
+    },
+    {
+      "factor": "Communication channel dependency: the status page infrastructure ran on the same failing Google Cloud infrastructure, delaying the first public incident report by about an hour.",
+      "evidence": "\"The first incident report was posted to Cloud Service Health ~1h after the start of the crashes, because the Cloud Service Health infrastructure was down due to this outage.\""
+    },
+    {
+      "factor": "Blast radius widened across products because the shared API management and control plane was a common dependency for many Google Cloud and Workspace services.",
+      "evidence": "\"Google and Google Cloud APIs are served through Google API management and control planes.\" and \"Affected products included Identity and Access Management, Cloud Storage, BigQuery, Compute Engine, Cloud Run, Cloud Spanner, Cloud SQL, Pub/Sub...\""
+    },
+    {
+      "factor": "Residual backlogs and delayed downstream services (Dataflow, Vertex AI, Personalized Service Health) prolonged impact well after the primary issue was mitigated.",
+      "evidence": "\"Several products had residual impact (e.g. backlogs) for some time after the primary issue was mitigated.\""
+    }
+  ],
+  "action_items": [
+    {
+      "action": "Require progressive, region-by-region staged rollout for policy and metadata changes to Service Control, with automated health-based halt criteria, instead of near-instant global replication.",
+      "owner_role": "Service Control team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Add input validation in Service Control that rejects or safely defaults policy metadata containing blank or missing required fields before it reaches the quota-check code path.",
+      "owner_role": "Service Control team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Establish a mechanism to exercise new code paths (such as synthetic or canary policy changes) during rollout, so feature paths gated behind data triggers are tested before global release.",
+      "owner_role": "Service Control team",
+      "type": "detect",
+      "priority": "high"
+    },
+    {
+      "action": "Implement restart backoff and jittered task startup in Service Control so that mass restarts do not create a herd effect against the underlying Spanner tables, and add load-shedding limits for regional recovery.",
+      "owner_role": "Service Control team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Move the Cloud Service Health status page and incident communication infrastructure off the dependency chain of the primary Google Cloud control plane, so that status updates remain available during major outages.",
+      "owner_role": "Cloud Service Health team",
+      "type": "detect",
+      "priority": "high"
+    },
+    {
+      "action": "Isolate the shared API management and control plane into more independent failure domains so that a fault in one service's policy path cannot propagate across Google Cloud and Workspace products.",
+      "owner_role": "API Management / Control Plane team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Create runbooks and capacity tooling for draining and clearing backlogs in downstream services (Dataflow, Vertex AI Online Prediction) to shorten residual impact after primary mitigation.",
+      "owner_role": "Dataflow and Vertex AI on-call teams",
+      "type": "mitigate",
+      "priority": "low"
+    }
+  ],
+  "changes": [
+    {
+      "change": "Reworded #3: Policy and metadata changes replicated globally within seconds with no staged or progressive rollout, so a single bad change reached every regional deployment at once and the crash loop was not contained to a single region.",
+      "reason": "Report states metadata replicated globally within seconds, letting one bad change reach all regions; this is the key reason the failure was global."
+    },
+    {
+      "change": "Merged #4 into #3: Crash loop occurred simultaneously in every regional deployment, so the failure was not contained to a single region.",
+      "reason": "Simultaneous global failure is the consequence of the same near-instant global replication issue described in #3."
+    },
+    {
+      "change": "Removed #6: The red-button kill switch for the new serving path existed but had to be manually deployed, adding roughly 40 minutes before recovery began.",
+      "reason": "Report shows the red-button was prepared within ~25 minutes and rolled out in 40 minutes, so it limited damage; the claim that it was a problem is not supported."
+    },
+    {
+      "change": "Removed #8: Customer monitoring was also degraded, because customers' monitoring infrastructure running on Google Cloud was failing, leaving them without a signal of the incident.",
+      "reason": "Customer-side monitoring failures are not within the service's control and the report offers no evidence they slowed recovery; this restates a customer impact and overlaps with #7's communication gap."
+    },
+    {
+      "change": "Removed the action to pre-stage the red-button kill switch for one-step activation.",
+      "reason": "It only addresses factor #6, which was removed because the red-button limited damage and was deployed within the reported timeline."
+    },
+    {
+      "change": "Removed the action to provide customers an out-of-band incident notification channel independent of Google Cloud.",
+      "reason": "It only addresses factor #8, which was removed as unsupported by evidence of contribution to the failure or slowed recovery."
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "factors": [
+    {
+      "factor": "Command input validation: the removal command accepted an incorrectly entered input that caused a far larger set of servers to be removed than intended, with no safeguard catching the mistake.",
+      "evidence": "\"One of the inputs to the command was entered incorrectly and a larger set of servers was removed than intended.\""
+    },
+    {
+      "factor": "Tooling/process design: the operation relied on a playbook command that could remove capacity supporting multiple critical subsystems, rather than being scoped or constrained to only the intended servers.",
+      "evidence": "\"an authorized S3 team member using an established playbook executed a command which was intended to remove a small number of servers for one of the S3 subsystems\"; \"The servers that were removed supported two other S3 subsystems.\""
+    },
+    {
+      "factor": "Architectural dependency: the index and placement subsystems depended on the same servers and the placement subsystem depended on the index subsystem, so losing capacity cascaded into a full-region outage.",
+      "evidence": "\"The placement subsystem... requires the index subsystem to be functioning properly to correctly operate.\"; \"Removing a significant portion of the capacity caused each of these systems to require a full restart.\""
+    },
+    {
+      "factor": "Recovery procedure duration: restart and metadata integrity safety checks were slow and not sized for the scale of the failure, extending the outage.",
+      "evidence": "\"The process of restarting these services and running the necessary safety checks to validate the integrity of the metadata took longer than expected.\""
+    },
+    {
+      "factor": "Downstream service coupling: many dependent AWS services relied on S3 in the region, amplifying the blast radius of the S3 disruption.",
+      "evidence": "\"Other AWS services in the US-EAST-1 Region that rely on S3 for storage, including the S3 console, Amazon Elastic Compute Cloud (EC2) new instance launches, Amazon Elastic Block Store (EBS) volumes... and AWS Lambda were also impacted\""
+    },
+    {
+      "factor": "Communication tooling dependency: the Service Health Dashboard depended on S3, so status could not be updated during the incident and customers had to rely on fallback channels.",
+      "evidence": "\"the team was unable to update the individual services' status on the AWS Service Health Dashboard (SHD) because of a dependency the SHD administration console has on Amazon S3.\""
+    },
+    {
+      "factor": "Backlog accumulation in dependent services: downstream services accrued work during the outage that extended their recovery time after S3 was restored.",
+      "evidence": "\"Some of these services had accumulated a backlog of work during the S3 disruption and required additional time to fully recover.\""
+    }
+  ]
+}

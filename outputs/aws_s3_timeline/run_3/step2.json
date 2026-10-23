@@ -1,0 +1,32 @@
+{
+  "factors": [
+    {
+      "factor": "Input validation and safeguards were insufficient: a single mistyped input to the server-removal command was able to remove a much larger set of servers than intended, with no effective guard against the broader removal.",
+      "evidence": "\"One of the inputs to the command was entered incorrectly and a larger set of servers was removed than intended.\""
+    },
+    {
+      "factor": "The operational playbook/procedure allowed a capacity-removal action affecting critical subsystems to be executed in a way that could remove servers supporting index and placement subsystems, rather than constraining the action to the intended billing subsystem.",
+      "evidence": "\"an authorized S3 team member using an established playbook executed a command which was intended to remove a small number of servers for one of the S3 subsystems that is used by the S3 billing process.\""
+    },
+    {
+      "factor": "Subsystems were not designed to tolerate removal of a significant portion of capacity without a full restart, so a capacity reduction caused a complete outage rather than a degraded state.",
+      "evidence": "\"Removing a significant portion of the capacity caused each of these systems to require a full restart. While these subsystems were being restarted, S3 was unable to service requests.\""
+    },
+    {
+      "factor": "Restart and recovery procedures were slow because the safety checks validating metadata integrity took longer than expected, extending the outage duration.",
+      "evidence": "\"The process of restarting these services and running the necessary safety checks to validate the integrity of the metadata took longer than expected.\""
+    },
+    {
+      "factor": "Tight coupling and lack of isolation: the index subsystem is required by the placement subsystem and by all S3 request types, and many dependent AWS services rely on S3 in the same region, so the failure cascaded widely.",
+      "evidence": "\"The placement subsystem, manages allocation of new storage and requires the index subsystem to be functioning properly to correctly operate.\" and \"Other AWS services in the US-EAST-1 Region that rely on S3 for storage... were also impacted while the S3 APIs were unavailable.\""
+    },
+    {
+      "factor": "Communication tooling had a hidden dependency on the affected service: the Service Health Dashboard administration console depended on S3, so status could not be updated during the outage.",
+      "evidence": "\"the team was unable to update the individual services' status on the AWS Service Health Dashboard (SHD) because of a dependency the SHD administration console has on Amazon S3.\""
+    },
+    {
+      "factor": "Customer communication was degraded during the incident, relying on fallback channels (Twitter and banner text) rather than per-service status updates.",
+      "evidence": "\"Instead, the AWS Twitter feed (@AWSCloud) and SHD banner text were used to communicate status until the individual services' status could be updated on the SHD.\""
+    }
+  ]
+}

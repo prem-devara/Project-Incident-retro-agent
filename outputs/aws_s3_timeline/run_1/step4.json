@@ -1,0 +1,151 @@
+{
+  "factor_verdicts": [
+    {
+      "id": 1,
+      "verdict": "keep",
+      "reason": "Report states an incorrectly entered input removed more servers than intended; the lack of a safeguard is a systemic gap that caused the failure.",
+      "new_wording": "Command input validation: the capacity-removal command accepted an input that removed a far larger set of servers than intended, and no safeguard caught the mismatch before execution."
+    },
+    {
+      "id": 2,
+      "verdict": "keep",
+      "reason": "Report shows the established playbook allowed removal of servers supporting subsystems beyond the intended billing-related one, which contributed to the scope of impact."
+    },
+    {
+      "id": 3,
+      "verdict": "merge with #2",
+      "reason": "Same underlying issue as #2: removal affecting servers that support other subsystems, i.e. the blast radius of the removal.",
+      "new_wording": "Tooling, playbook design, and subsystem coupling: the established playbook and tooling permitted removal of servers that supported multiple subsystems, and the removed servers also supported the index and placement subsystems, so the removal had a blast radius well beyond the intended billing-related target."
+    },
+    {
+      "id": 4,
+      "verdict": "keep",
+      "reason": "Report says restart and metadata integrity checks took longer than expected, prolonging the outage. Note: the 'not designed for quick restarts' claim goes slightly beyond the evidence but the delay itself is supported.",
+      "new_wording": "Restart and recovery time: restarting the index and placement subsystems and running the metadata integrity safety checks took longer than expected, prolonging the outage."
+    },
+    {
+      "id": 5,
+      "verdict": "keep",
+      "reason": "Report explicitly states the SHD admin console's dependency on S3 prevented status updates until 11:37AM PST."
+    },
+    {
+      "id": 6,
+      "verdict": "keep",
+      "reason": "Report lists S3 console, EC2 launches, EBS, and Lambda as impacted by S3 API unavailability, widening the outage's impact."
+    },
+    {
+      "id": 7,
+      "verdict": "keep",
+      "reason": "Report says the placement subsystem requires the index subsystem and began recovery only once the index was functional, serializing recovery (PUT recovered at 1:54PM vs 1:18PM)."
+    },
+    {
+      "id": 8,
+      "verdict": "keep",
+      "reason": "Report states dependent services accumulated backlog and needed additional time to fully recover, extending customer impact."
+    }
+  ],
+  "factors": [
+    {
+      "factor": "Command input validation: the capacity-removal command accepted an input that removed a far larger set of servers than intended, and no safeguard caught the mismatch before execution.",
+      "evidence": "\"One of the inputs to the command was entered incorrectly and a larger set of servers was removed than intended.\""
+    },
+    {
+      "factor": "Tooling and playbook design: the operation was performed using an established playbook that permitted removal of servers supporting multiple subsystems, not only the intended billing-related subsystem.",
+      "evidence": "\"an authorized S3 team member using an established playbook executed a command which was intended to remove a small number of servers for one of the S3 subsystems that is used by the S3 billing process.\" | \"The servers that were removed supported two other S3 subsystems.\""
+    },
+    {
+      "factor": "Restart and recovery time: restarting the index and placement subsystems and running the metadata integrity safety checks took longer than expected, prolonging the outage.",
+      "evidence": "\"The process of restarting these services and running the necessary safety checks to validate the integrity of the metadata took longer than expected.\""
+    },
+    {
+      "factor": "Dependency of the health dashboard on the failing service: the Service Health Dashboard admin console depended on S3, so status updates could not be published during the outage.",
+      "evidence": "\"the team was unable to update the individual services' status on the AWS Service Health Dashboard (SHD) because of a dependency the SHD administration console has on Amazon S3.\""
+    },
+    {
+      "factor": "Cross-service dependency on S3 in the region: many AWS services relying on S3 for storage were impacted when S3 APIs became unavailable.",
+      "evidence": "\"Other AWS services in the US-EAST-1 Region that rely on S3 for storage, including the S3 console, Amazon Elastic Compute Cloud (EC2) new instance launches, Amazon Elastic Block Store (EBS) volumes (when data was needed from a S3 snapshot), and AWS Lambda were also impacted\""
+    },
+    {
+      "factor": "Sequential recovery dependency: the placement subsystem could not recover until the index subsystem was fully functional, serializing recovery and extending the time to full service.",
+      "evidence": "\"The placement subsystem began recovery when the index subsystem was functional and finished recovery at 1:54PM PST.\""
+    },
+    {
+      "factor": "Backlog accumulation in dependent services: downstream services accumulated work during the outage and needed extra time to recover after S3 was restored.",
+      "evidence": "\"Some of these services had accumulated a backlog of work during the S3 disruption and required additional time to fully recover.\""
+    }
+  ],
+  "action_items": [
+    {
+      "action": "Add input validation and confirmation safeguards to capacity-removal tooling, such as requiring explicit confirmation of the target server count and blocking execution when the count exceeds a defined threshold for the playbook.",
+      "owner_role": "S3 operations tooling team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Redesign the operational playbook and tooling so that server removal can only target servers serving a single subsystem, and enforce the restriction in code rather than relying on operator input accuracy.",
+      "owner_role": "S3 operations tooling team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Decouple the index and placement subsystems from the servers used by the billing subsystem so that removing capacity for one subsystem cannot take down others.",
+      "owner_role": "S3 architecture team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Modify the index and placement subsystems to support restart without full-fleet restarts and to complete metadata integrity checks incrementally, and measure restart time against a defined recovery objective.",
+      "owner_role": "S3 storage engineering team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Remove the Service Health Dashboard admin console's dependency on S3 and host it in a separate failure domain so status updates can be published during an S3 outage.",
+      "owner_role": "AWS Service Health Dashboard team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Create a runbook and automated alerting for communicating status to customers through alternate channels when the primary status dashboard is unavailable.",
+      "owner_role": "Incident communications team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Map and document regional dependencies on S3 for dependent services such as EC2, EBS, Lambda, and the S3 console, and test degraded-mode behavior for each.",
+      "owner_role": "Infrastructure team",
+      "type": "detect",
+      "priority": "medium"
+    },
+    {
+      "action": "Add a pre-execution check to capacity-removal tooling that calculates the remaining capacity of every subsystem that would be affected and blocks the change if any subsystem would fall below its defined minimum safe threshold; add an alert when live subsystem capacity drops below that threshold. Verify in a test environment that an over-removal attempt is blocked.",
+      "owner_role": "S3 operations tooling team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Add backpressure and backlog-draining controls to dependent services so they recover in a bounded, predictable time after an upstream outage.",
+      "owner_role": "Lambda and EBS service teams",
+      "type": "mitigate",
+      "priority": "low"
+    }
+  ],
+  "changes": [
+    {
+      "change": "Reworded #1: Command input validation: the capacity-removal command accepted an input that removed a far larger set of servers than intended, and no safeguard caught the mismatch before execution.",
+      "reason": "Report states an incorrectly entered input removed more servers than intended; the lack of a safeguard is a systemic gap that caused the failure."
+    },
+    {
+      "change": "Merged #3 into #2: Architectural coupling: the servers removed supported two other critical subsystems (index and placement), so the removal had a blast radius beyond the intended target.",
+      "reason": "Same underlying issue as #2: removal affecting servers that support other subsystems, i.e. the blast radius of the removal."
+    },
+    {
+      "change": "Reworded #4: Restart and recovery time: restarting the index and placement subsystems and running the metadata integrity safety checks took longer than expected, prolonging the outage.",
+      "reason": "Report says restart and metadata integrity checks took longer than expected, prolonging the outage. Note: the 'not designed for quick restarts' claim goes slightly beyond the evidence but the delay itself is supported."
+    },
+    {
+      "change": "Rewrote the monitoring action item (formerly owned by 'S3 on-call engineer', type detect) into a pre-execution capacity check plus alert, owned by the S3 operations tooling team, type prevent, with a verification step.",
+      "reason": "Owner was a role tied to an individual on-call person rather than a team, the item was vague ('safe thresholds', 'before it reaches a point requiring full restart'), and it was not verifiable; a blocking check is also more effective than alerting after removal."
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "impact_summary": "Google Cloud and Google Workspace products experienced widespread 503 errors on external API requests on June 12, 2025, beginning around 10:45 and affecting customers globally. Customers had intermittent API and user-interface access issues across many services, including IAM, Cloud Storage, BigQuery, Compute Engine, Cloud Spanner, Pub/Sub, Vertex AI, and Gmail, and some customers lost monitoring visibility. Most services were recovered by about 13:45, us-central1 took up to roughly 2h 40m to fully resolve, and residual impact to Dataflow and Vertex AI Online Prediction persisted until 18:27.",
+  "action_items": [
+    {
+      "action": "Require progressive, region-by-region staged rollout with automated health gates for policy and metadata changes, rather than near-instant global replication of regional policy data.",
+      "owner_role": "Service Control team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Add schema and input validation that rejects policy metadata with unintended blank or null required fields before it is replicated or consumed by Service Control.",
+      "owner_role": "Service Control team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Require new code paths gated behind policy-triggered logic to be exercised in pre-production or with synthetic policy data during rollout, so untested paths are not shipped silently.",
+      "owner_role": "API platform release engineering",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Build and verify global kill switches for new serving paths before release so they can be toggled within minutes instead of being built manually during the incident.",
+      "owner_role": "Service Control team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Implement staggered task restart and capacity-aware throttling for Service Control recovery so mass restarts do not overload the underlying Spanner tables.",
+      "owner_role": "Infrastructure team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Decouple Cloud Service Health status publishing from the Google Cloud production control plane and establish an out-of-band channel for incident communication.",
+      "owner_role": "Cloud Service Health team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Publish incident updates that include known workarounds and estimated time to mitigation as soon as they are available, even if preliminary.",
+      "owner_role": "Incident communications lead",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Provide customers with guidance and tooling for monitoring that does not depend on the same regional Google Cloud control plane, and document it in customer runbooks.",
+      "owner_role": "Customer reliability engineering team",
+      "type": "detect",
+      "priority": "medium"
+    },
+    {
+      "action": "Add alerting on Service Control crash-loop rates and regional error spikes so anomalies are detected within minutes of a bad policy change.",
+      "owner_role": "On-call engineer",
+      "type": "detect",
+      "priority": "high"
+    }
+  ]
+}

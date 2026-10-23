@@ -1,0 +1,151 @@
+{
+  "factor_verdicts": [
+    {
+      "id": 1,
+      "verdict": "keep",
+      "reason": "Report states the new code path was never exercised during the rollout because it needed a policy change, so the defect shipped undetected."
+    },
+    {
+      "id": 2,
+      "verdict": "keep",
+      "reason": "Report states policy data with unintended blank fields was processed and triggered the null-pointer crash loop; no validation caught it."
+    },
+    {
+      "id": 3,
+      "verdict": "keep",
+      "reason": "Report states metadata replicated globally within seconds and the crash occurred in every regional deployment, so there was no staged containment.",
+      "new_wording": "Policy and quota metadata replicated globally within seconds with no staged or progressive safeguard, so a single bad policy change (with blank fields) crashed Service Control in every region at once instead of being contained to one."
+    },
+    {
+      "id": 4,
+      "verdict": "remove",
+      "reason": "The report says the red-button shipped with the May 29 code change and was a mitigation that enabled recovery; claiming it was not in place or that it was built from scratch is not supported, and the ~40 minutes spanned diagnosis, preparation, and rollout."
+    },
+    {
+      "id": 5,
+      "verdict": "keep",
+      "reason": "Report states restarting tasks created a herd effect that overloaded Spanner and prolonged us-central1 recovery to ~2h40m.",
+      "new_wording": "Mass restart of Service Control tasks in large regions such as us-central1 created a herd effect that overloaded the underlying Spanner tables, prolonging recovery there to ~2h 40m; restart throttling was only applied reactively during the incident."
+    },
+    {
+      "id": 6,
+      "verdict": "keep",
+      "reason": "Report states Cloud Service Health was down due to this outage, delaying the first incident report by ~1 hour."
+    },
+    {
+      "id": 7,
+      "verdict": "keep",
+      "reason": "Report states some customers' monitoring running on Google Cloud also failed, leaving them without a signal of the incident.",
+      "new_wording": "Some customers' monitoring infrastructure ran on the same Google Cloud services that were failing, leaving them without a signal of the incident or its impact."
+    },
+    {
+      "id": 8,
+      "verdict": "remove",
+      "reason": "The updates said no workaround and no ETA, but the report does not show a workaround existed or that an ETA was knowable; the claim that this limited customer mitigation is speculation."
+    }
+  ],
+  "factors": [
+    {
+      "factor": "Untested code path shipped to production: the new Service Control quota-policy code path was never exercised during the region-by-region rollout because it required a policy change to trigger it, so the null-pointer defect went undetected until production policy data hit it.",
+      "evidence": "\"This code change and binary release went through a region by region rollout, but the new code path was never exercised during this rollout because it needed a policy change to trigger it.\""
+    },
+    {
+      "factor": "Missing input validation on policy metadata: policy data containing unintended blank fields was accepted and processed by Service Control, which then crashed on a null pointer.",
+      "evidence": "\"This policy data contained unintended blank fields. Service Control then regionally exercised quota checks on policies in each regional datastore. This pulled in blank fields for this policy change and exercised the new code path, which hit a null pointer and caused the binaries to go into a crash loop.\""
+    },
+    {
+      "factor": "Policy and quota metadata replicated globally within seconds with no staged or progressive safeguard, so a single bad policy change (with blank fields) crashed Service Control in every region at once instead of being contained to one.",
+      "evidence": "\"This metadata was replicated globally within seconds.\" and \"This occurred globally, in each regional deployment.\""
+    },
+    {
+      "factor": "Mass restart of Service Control tasks in large regions such as us-central1 created a herd effect that overloaded the underlying Spanner tables, prolonging recovery there to ~2h 40m; restart throttling was only applied reactively during the incident.",
+      "evidence": "\"as Service Control tasks restarted, it created a herd effect on the underlying infrastructure it depends on (the Spanner table), overloading that infrastructure.\" and \"It took up to ~2h 40 mins to fully resolve in us-central1.\""
+    },
+    {
+      "factor": "Dependency of the status/communication infrastructure on the failing system: Cloud Service Health was down, delaying the first public incident report by about an hour.",
+      "evidence": "\"The first incident report was posted to Cloud Service Health ~1h after the start of the crashes, because the Cloud Service Health infrastructure was down due to this outage.\""
+    },
+    {
+      "factor": "Some customers' monitoring infrastructure ran on the same Google Cloud services that were failing, leaving them without a signal of the incident or its impact.",
+      "evidence": "\"For some customers, the monitoring infrastructure they had running on Google Cloud was also failing, leaving them without a signal of the incident or an understanding of the impact.\""
+    }
+  ],
+  "action_items": [
+    {
+      "action": "Require progressive, region-by-region staged rollout with automated health gates for policy and metadata changes, rather than near-instant global replication of regional policy data.",
+      "owner_role": "Service Control team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Add schema and input validation that rejects policy metadata with unintended blank or null required fields before it is replicated or consumed by Service Control.",
+      "owner_role": "Service Control team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Require new code paths gated behind policy-triggered logic to be exercised in pre-production or with synthetic policy data during rollout, so untested paths are not shipped silently.",
+      "owner_role": "API platform release engineering",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Implement staggered task restart and capacity-aware throttling for Service Control recovery so mass restarts do not overload the underlying Spanner tables.",
+      "owner_role": "Infrastructure team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Decouple Cloud Service Health status publishing from the Google Cloud production control plane and establish an out-of-band channel for incident communication.",
+      "owner_role": "Cloud Service Health team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Provide customers with guidance and tooling for monitoring that does not depend on the same regional Google Cloud control plane, and document it in customer runbooks.",
+      "owner_role": "Customer reliability engineering team",
+      "type": "detect",
+      "priority": "medium"
+    },
+    {
+      "action": "Add alerting on Service Control crash-loop rates and regional error spikes so anomalies are detected within minutes of a bad policy change.",
+      "owner_role": "Service Control on-call rotation",
+      "type": "detect",
+      "priority": "high"
+    }
+  ],
+  "changes": [
+    {
+      "change": "Reworded #3: Policy and quota metadata replicated globally within seconds with no staged or progressive safeguard, so a single bad policy change (with blank fields) crashed Service Control in every region at once instead of being contained to one.",
+      "reason": "Report states metadata replicated globally within seconds and the crash occurred in every regional deployment, so there was no staged containment."
+    },
+    {
+      "change": "Removed #4: Kill switch not in place at the time of failure: the red-button that could disable the serving path existed but had to be built out and rolled out manually, delaying recovery by roughly 40 minutes.",
+      "reason": "The report says the red-button shipped with the May 29 code change and was a mitigation that enabled recovery; claiming it was not in place or that it was built from scratch is not supported, and the ~40 minutes spanned diagnosis, preparation, and rollout."
+    },
+    {
+      "change": "Reworded #5: Mass restart of Service Control tasks in large regions such as us-central1 created a herd effect that overloaded the underlying Spanner tables, prolonging recovery there to ~2h 40m; restart throttling was only applied reactively during the incident.",
+      "reason": "Report states restarting tasks created a herd effect that overloaded Spanner and prolonged us-central1 recovery to ~2h40m."
+    },
+    {
+      "change": "Reworded #7: Some customers' monitoring infrastructure ran on the same Google Cloud services that were failing, leaving them without a signal of the incident or its impact.",
+      "reason": "Report states some customers' monitoring running on Google Cloud also failed, leaving them without a signal of the incident."
+    },
+    {
+      "change": "Removed #8: Initial status updates lacked a workaround and an ETA, limiting customers' ability to mitigate on their own.",
+      "reason": "The updates said no workaround and no ETA, but the report does not show a workaround existed or that an ETA was knowable; the claim that this limited customer mitigation is speculation."
+    },
+    {
+      "change": "Removed the action to build and verify global kill switches before release.",
+      "reason": "It addressed factor #4, which was removed because the red-button shipped with the code change and aided recovery."
+    },
+    {
+      "change": "Removed the action to publish incident updates with workarounds and ETAs.",
+      "reason": "It addressed factor #8, which was removed as speculative and unsupported by the report."
+    },
+    {
+      "change": "Changed owner_role of the crash-loop alerting action from 'On-call engineer' to 'Service Control on-call rotation'.",
+      "reason": "A single engineer role could imply individual accountability; a team-level rotation is the appropriate owner."
+    }
+  ]
+}

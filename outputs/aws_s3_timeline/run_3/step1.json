@@ -1,0 +1,44 @@
+{
+  "events": [
+    {
+      "time": "February 28, 2017, 9:37AM PST",
+      "description": "An authorized S3 team member executed a command intended to remove a small number of servers for an S3 billing-related subsystem, but an input was entered incorrectly and a larger set of servers was removed than intended."
+    },
+    {
+      "time": "February 28, 2017, shortly after 9:37AM PST",
+      "description": "The removed servers supported the index subsystem and the placement subsystem, causing both to require a full restart and making S3 unable to service requests."
+    },
+    {
+      "time": "February 28, 2017, during the outage (after 9:37AM PST)",
+      "description": "Other AWS services in US-EAST-1 relying on S3 were impacted, including the S3 console, EC2 new instance launches, EBS volumes needing S3 snapshot data, and AWS Lambda."
+    },
+    {
+      "time": "February 28, 2017, until 11:37AM PST",
+      "description": "The team could not update individual service status on the AWS Service Health Dashboard due to its dependency on Amazon S3; status was communicated via the AWS Twitter feed and SHD banner text instead."
+    },
+    {
+      "time": "February 28, 2017, 11:37AM PST",
+      "description": "The team was able to update individual services' status on the AWS Service Health Dashboard again."
+    },
+    {
+      "time": "February 28, 2017, 12:26PM PST",
+      "description": "The index subsystem activated enough capacity to begin servicing S3 GET, LIST, and DELETE requests."
+    },
+    {
+      "time": "February 28, 2017, 1:18PM PST",
+      "description": "The index subsystem was fully recovered and GET, LIST, and DELETE APIs were functioning normally."
+    },
+    {
+      "time": "February 28, 2017, after index subsystem recovery (before 1:54PM PST)",
+      "description": "The placement subsystem began recovery once the index subsystem was functional."
+    },
+    {
+      "time": "February 28, 2017, 1:54PM PST",
+      "description": "The placement subsystem finished recovery and S3 was operating normally."
+    },
+    {
+      "time": "February 28, 2017, after S3 recovery",
+      "description": "Other impacted AWS services began recovering, with some requiring additional time to process accumulated backlogs."
+    }
+  ]
+}

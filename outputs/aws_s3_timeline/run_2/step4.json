@@ -1,0 +1,145 @@
+{
+  "factor_verdicts": [
+    {
+      "id": 1,
+      "verdict": "keep",
+      "reason": "Report states a single incorrectly entered input removed far more servers than intended, supporting a missing-safeguard claim in the tooling.",
+      "new_wording": "Command tooling lacked safeguards (input validation, scope limits, confirmation of resolved server count) against an incorrectly entered parameter, so a single incorrect input could remove far more servers than intended and the playbook did not catch the overly broad removal before it reached production capacity"
+    },
+    {
+      "id": 2,
+      "verdict": "merge with #1",
+      "reason": "Same underlying issue as #1: no safeguard prevented or caught an overly broad removal; the playbook is just the vehicle for the same command."
+    },
+    {
+      "id": 3,
+      "verdict": "keep",
+      "reason": "Report states the removed servers supported two other critical subsystems, so impact scope exceeded the intended change."
+    },
+    {
+      "id": 4,
+      "verdict": "keep",
+      "reason": "Report states the capacity loss forced full restarts of both subsystems, during which S3 could not serve requests."
+    },
+    {
+      "id": 5,
+      "verdict": "keep",
+      "reason": "Report explicitly says restart and metadata integrity checks took longer than expected, prolonging recovery."
+    },
+    {
+      "id": 6,
+      "verdict": "keep",
+      "reason": "Report explicitly states the SHD admin console's S3 dependency prevented status updates for two hours, hindering customer communication."
+    },
+    {
+      "id": 7,
+      "verdict": "keep",
+      "reason": "Report lists EC2, EBS, Lambda and the S3 console as impacted because of reliance on S3, widening the blast radius."
+    },
+    {
+      "id": 8,
+      "verdict": "keep",
+      "reason": "Report states dependent services accumulated backlogs and needed extra time to fully recover after S3 was restored."
+    }
+  ],
+  "factors": [
+    {
+      "factor": "Command tooling lacked safeguards (input validation, scope limits, confirmation of resolved server count) against an incorrectly entered parameter, so a single incorrect input could remove far more servers than intended and the playbook did not catch the overly broad removal before it reached production capacity",
+      "evidence": "\"One of the inputs to the command was entered incorrectly and a larger set of servers was removed than intended.\" | \"an authorized S3 team member using an established playbook executed a command which was intended to remove a small number of servers\""
+    },
+    {
+      "factor": "Servers supporting multiple critical subsystems (index and placement) were coupled to a single removal operation, so the scope of impact exceeded the scope of the intended change",
+      "evidence": "\"The servers that were removed supported two other S3 subsystems.\""
+    },
+    {
+      "factor": "Critical subsystems required full restarts rather than being able to recover incrementally after capacity loss, extending the outage",
+      "evidence": "\"Removing a significant portion of the capacity caused each of these systems to require a full restart.\""
+    },
+    {
+      "factor": "Restart and metadata integrity safety checks were slower than expected, prolonging recovery time",
+      "evidence": "\"The process of restarting these services and running the necessary safety checks to validate the integrity of the metadata took longer than expected.\""
+    },
+    {
+      "factor": "Strong dependency of the service health dashboard administration console on S3 prevented status updates to customers during the outage",
+      "evidence": "\"the team was unable to update the individual services' status on the AWS Service Health Dashboard (SHD) because of a dependency the SHD administration console has on Amazon S3.\""
+    },
+    {
+      "factor": "Heavy reliance on S3 by other AWS services in the region propagated the impact to EC2, EBS, Lambda, and the S3 console",
+      "evidence": "\"Other AWS services in the US-EAST-1 Region that rely on S3 for storage, including the S3 console, Amazon Elastic Compute Cloud (EC2) new instance launches, Amazon Elastic Block Store (EBS) volumes (when data was needed from a S3 snapshot), and AWS Lambda were also impacted\""
+    },
+    {
+      "factor": "Accumulated backlogs in dependent services extended recovery after S3 was restored",
+      "evidence": "\"Some of these services had accumulated a backlog of work during the S3 disruption and required additional time to fully recover.\""
+    }
+  ],
+  "action_items": [
+    {
+      "action": "Add input validation and confirmation safeguards to the capacity-removal command, such as requiring explicit confirmation of the resolved server count and blocking removals that exceed a defined threshold without an additional approval step.",
+      "owner_role": "Infrastructure tooling team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Revise the capacity-removal playbook to require a dry-run that lists the exact servers affected and verifies that none support critical index or placement subsystems before execution.",
+      "owner_role": "S3 operations team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Decouple the servers supporting the index and placement subsystems from the servers used by the billing subsystem so that a single removal operation cannot affect multiple critical subsystems.",
+      "owner_role": "S3 architecture team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Modify the index and placement subsystems to support incremental recovery from partial capacity loss instead of requiring full restarts.",
+      "owner_role": "S3 index and placement subsystem teams",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Optimize the restart and metadata integrity safety checks, and establish measured recovery time targets for each critical subsystem, validated through regular restart testing.",
+      "owner_role": "S3 storage reliability team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Remove the dependency of the Service Health Dashboard administration console on S3 by hosting it in a separate, independently available infrastructure.",
+      "owner_role": "AWS Service Health Dashboard team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Map and reduce intra-region dependencies on S3 for control-plane functions in EC2, EBS, Lambda, and the S3 console, and document fallback behavior for each.",
+      "owner_role": "Cross-service reliability working group",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Add alerting on rapid capacity loss within S3 subsystems so that the on-call rotation is paged before the loss causes service unavailability.",
+      "owner_role": "S3 on-call team",
+      "type": "detect",
+      "priority": "medium"
+    },
+    {
+      "action": "Establish backlog-draining procedures and rate-limiting for dependent services so they recover in a controlled manner after an upstream dependency is restored.",
+      "owner_role": "Dependent service owners (EC2, EBS, Lambda)",
+      "type": "mitigate",
+      "priority": "low"
+    }
+  ],
+  "changes": [
+    {
+      "change": "Reworded #1: Command tooling lacked safeguards (input validation, scope limits, confirmation of resolved server count) against an incorrectly entered parameter, so a single incorrect input could remove far more servers than intended and the playbook did not catch the overly broad removal before it reached production capacity",
+      "reason": "Report states a single incorrectly entered input removed far more servers than intended, supporting a missing-safeguard claim in the tooling."
+    },
+    {
+      "change": "Merged #2 into #1: The operational playbook used for a capacity-removal action did not prevent or catch an overly broad removal, allowing an error to propagate to production capacity",
+      "reason": "Same underlying issue as #1: no safeguard prevented or caught an overly broad removal; the playbook is just the vehicle for the same command."
+    },
+    {
+      "change": "Changed owner_role of the rapid-capacity-loss alerting item from 'S3 on-call engineer' to 'S3 on-call team'.",
+      "reason": "Owner should be a team or role rather than an individual engineer, to avoid pointing to one person and to ensure shared accountability."
+    }
+  ]
+}

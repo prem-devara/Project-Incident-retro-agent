@@ -1,0 +1,40 @@
+{
+  "factors": [
+    {
+      "factor": "Untested new code path: the Service Control feature added on May 29 was never exercised during the region-by-region rollout because it required a policy change to trigger it, so the null pointer defect went undetected before production.",
+      "evidence": "\"This code change and binary release went through a region by region rollout, but the new code path was never exercised during this rollout because it needed a policy change to trigger it.\""
+    },
+    {
+      "factor": "Missing input validation/null handling: the code path hit a null pointer when quota checks pulled in blank policy fields, causing binaries to crash.",
+      "evidence": "\"This pulled in blank fields for this policy change and exercised the new code path, which hit a null pointer and caused the binaries to go into a crash loop.\""
+    },
+    {
+      "factor": "Unvalidated policy data propagated globally: a policy change containing unintended blank fields was replicated worldwide within seconds without being caught, so the bad data reached every region at once.",
+      "evidence": "\"This metadata was replicated globally within seconds. This policy data contained unintended blank fields.\""
+    },
+    {
+      "factor": "Global simultaneous impact from a single configuration change: because metadata replication is near-instant and global, the crash loop occurred in every regional deployment at the same time rather than being contained to a region.",
+      "evidence": "\"This occurred globally, in each regional deployment.\""
+    },
+    {
+      "factor": "Recovery delayed by a herd effect: restarting Service Control tasks overloaded the underlying Spanner table in larger regions, extending recovery in us-central1 to roughly 2h 40m.",
+      "evidence": "\"as Service Control tasks restarted, it created a herd effect on the underlying infrastructure it depends on (the Spanner table), overloading that infrastructure.\" and \"It took up to ~2h 40 mins to fully resolve in us-central1.\""
+    },
+    {
+      "factor": "Lack of a tested mitigation at deployment: the kill switch (red-button) existed but had to be rolled out during the incident, adding roughly 40 minutes before recovery began.",
+      "evidence": "\"The code change came with a red-button to turn off that particular policy serving path.\" and \"Within 40 minutes of the incident, the red-button rollout was completed, and recovery started across regions\""
+    },
+    {
+      "factor": "Communication channel dependency: the status page infrastructure depended on the affected Google Cloud services, delaying the first public incident report by about an hour.",
+      "evidence": "\"The first incident report was posted to Cloud Service Health ~1h after the start of the crashes, because the Cloud Service Health infrastructure was down due to this outage.\""
+    },
+    {
+      "factor": "Customer monitoring blind spot: customers' monitoring running on Google Cloud also failed, leaving them without a signal of the incident or its impact.",
+      "evidence": "\"For some customers, the monitoring infrastructure they had running on Google Cloud was also failing, leaving them without a signal of the incident or an understanding of the impact.\""
+    },
+    {
+      "factor": "No workaround available for customers during the outage.",
+      "evidence": "\"Workaround: none at this time.\""
+    }
+  ]
+}

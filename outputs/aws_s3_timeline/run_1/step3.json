@@ -1,0 +1,59 @@
+{
+  "impact_summary": "On February 28, 2017, Amazon S3 in the US-EAST-1 Region was unable to service requests from approximately 9:37AM PST until 1:54PM PST, when the placement subsystem finished recovery and S3 returned to normal operation. Other AWS services in the region that depend on S3, including the S3 console, EC2 new instance launches, EBS volumes needing snapshot data, and AWS Lambda, were also impacted, and some required additional time to clear accumulated backlogs after S3 was restored. The AWS Service Health Dashboard could not be updated until 11:37AM PST due to its dependency on S3, so status was communicated via the @AWSCloud Twitter feed and banner text.",
+  "action_items": [
+    {
+      "action": "Add input validation and confirmation safeguards to capacity-removal tooling, such as requiring explicit confirmation of the target server count and blocking execution when the count exceeds a defined threshold for the playbook.",
+      "owner_role": "S3 operations tooling team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Redesign the operational playbook and tooling so that server removal can only target servers serving a single subsystem, and enforce the restriction in code rather than relying on operator input accuracy.",
+      "owner_role": "S3 operations tooling team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Decouple the index and placement subsystems from the servers used by the billing subsystem so that removing capacity for one subsystem cannot take down others.",
+      "owner_role": "S3 architecture team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Modify the index and placement subsystems to support restart without full-fleet restarts and to complete metadata integrity checks incrementally, and measure restart time against a defined recovery objective.",
+      "owner_role": "S3 storage engineering team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Remove the Service Health Dashboard admin console's dependency on S3 and host it in a separate failure domain so status updates can be published during an S3 outage.",
+      "owner_role": "AWS Service Health Dashboard team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Create a runbook and automated alerting for communicating status to customers through alternate channels when the primary status dashboard is unavailable.",
+      "owner_role": "Incident communications team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Map and document regional dependencies on S3 for dependent services such as EC2, EBS, Lambda, and the S3 console, and test degraded-mode behavior for each.",
+      "owner_role": "Infrastructure team",
+      "type": "detect",
+      "priority": "medium"
+    },
+    {
+      "action": "Establish monitoring that alerts on subsystem capacity dropping below safe thresholds during any capacity change, before it reaches a point requiring full restart.",
+      "owner_role": "S3 on-call engineer",
+      "type": "detect",
+      "priority": "medium"
+    },
+    {
+      "action": "Add backpressure and backlog-draining controls to dependent services so they recover in a bounded, predictable time after an upstream outage.",
+      "owner_role": "Lambda and EBS service teams",
+      "type": "mitigate",
+      "priority": "low"
+    }
+  ]
+}

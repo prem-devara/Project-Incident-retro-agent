@@ -1,0 +1,15 @@
+CONTRIBUTING FACTORS
+- A mistyped input to an established playbook command removed far more servers than intended
+- The tool allowed too much capacity to be removed too quickly, with no check against a subsystem's minimum required capacity
+- The removed servers supported the index and placement subsystems, which needed a full restart; placement depends on index, so recovery was sequential
+- Restarting the subsystems and running metadata safety checks took longer than expected
+- The index and placement subsystems had not been fully restarted in large regions for years, while S3 had grown massively (not in input)
+- The Service Health Dashboard admin console depended on S3, so service status could not be updated during the outage
+
+ACTION ITEMS
+- Change the capacity-removal tool to remove capacity more slowly
+- Block capacity removal that would take any subsystem below its minimum required capacity
+- Audit other operational tools for similar safety checks
+- Improve recovery time of key S3 subsystems
+- Start partitioning the index subsystem into smaller cells immediately
+- Run the Service Health Dashboard admin console across multiple regions

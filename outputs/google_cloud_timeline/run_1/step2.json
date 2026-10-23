@@ -1,0 +1,44 @@
+{
+  "factors": [
+    {
+      "factor": "Untested code path: the new Service Control quota-check feature was never exercised during the region-by-region rollout because it required a policy change to trigger it, so the null-pointer defect went undetected before global impact.",
+      "evidence": "\"This code change and binary release went through a region by region rollout, but the new code path was never exercised during this rollout because it needed a policy change to trigger it.\""
+    },
+    {
+      "factor": "Missing input validation on policy data: Service Control consumed policy metadata containing unintended blank fields without rejecting or guarding against them, causing a null pointer dereference.",
+      "evidence": "\"This policy data contained unintended blank fields... This pulled in blank fields for this policy change and exercised the new code path, which hit a null pointer and caused the binaries to go into a crash loop.\""
+    },
+    {
+      "factor": "Global, near-instantaneous replication of policy metadata with no staged or progressive rollout of configuration changes, allowing a single bad change to reach every region within seconds.",
+      "evidence": "\"This metadata was replicated globally within seconds.\""
+    },
+    {
+      "factor": "Crash loop occurred simultaneously in every regional deployment, so the failure was not contained to a single region.",
+      "evidence": "\"This occurred globally, in each regional deployment.\""
+    },
+    {
+      "factor": "Recovery was slowed by a herd effect when restarted Service Control tasks in large regions overloaded the underlying Spanner table, requiring throttling and rerouting and extending recovery in us-central1 to about 2h 40m.",
+      "evidence": "\"As Service Control tasks restarted, it created a herd effect on the underlying infrastructure it depends on (the Spanner table), overloading that infrastructure.\" and \"It took up to ~2h 40 mins to fully resolve in us-central1.\""
+    },
+    {
+      "factor": "The red-button kill switch for the new serving path existed but had to be manually deployed, adding roughly 40 minutes before recovery began.",
+      "evidence": "\"Within 40 minutes of the incident, the red-button rollout was completed, and recovery started across regions\""
+    },
+    {
+      "factor": "Communication channel dependency: the status page infrastructure ran on the same failing Google Cloud infrastructure, delaying the first public incident report by about an hour.",
+      "evidence": "\"The first incident report was posted to Cloud Service Health ~1h after the start of the crashes, because the Cloud Service Health infrastructure was down due to this outage.\""
+    },
+    {
+      "factor": "Customer monitoring was also degraded, because customers' monitoring infrastructure running on Google Cloud was failing, leaving them without a signal of the incident.",
+      "evidence": "\"For some customers, the monitoring infrastructure they had running on Google Cloud was also failing, leaving them without a signal of the incident or an understanding of the impact.\""
+    },
+    {
+      "factor": "Blast radius widened across products because the shared API management and control plane was a common dependency for many Google Cloud and Workspace services.",
+      "evidence": "\"Google and Google Cloud APIs are served through Google API management and control planes.\" and \"Affected products included Identity and Access Management, Cloud Storage, BigQuery, Compute Engine, Cloud Run, Cloud Spanner, Cloud SQL, Pub/Sub...\""
+    },
+    {
+      "factor": "Residual backlogs and delayed downstream services (Dataflow, Vertex AI, Personalized Service Health) prolonged impact well after the primary issue was mitigated.",
+      "evidence": "\"Several products had residual impact (e.g. backlogs) for some time after the primary issue was mitigated.\""
+    }
+  ]
+}

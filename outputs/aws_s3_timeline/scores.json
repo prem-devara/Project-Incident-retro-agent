@@ -1,0 +1,526 @@
+{
+  "input_file": "data/aws_s3_timeline.txt",
+  "answer_key": "eval/aws_s3_answer_key.txt",
+  "judge_model": "anthropic:claude-sonnet-5-5",
+  "rescored": true,
+  "key_factors": [
+    {
+      "id": 1,
+      "text": "A mistyped input to an established playbook command removed far more servers than intended",
+      "excluded": false
+    },
+    {
+      "id": 2,
+      "text": "The tool allowed too much capacity to be removed too quickly, with no check against a subsystem's minimum required capacity",
+      "excluded": false
+    },
+    {
+      "id": 3,
+      "text": "The removed servers supported the index and placement subsystems, which needed a full restart; placement depends on index, so recovery was sequential",
+      "excluded": false
+    },
+    {
+      "id": 4,
+      "text": "Restarting the subsystems and running metadata safety checks took longer than expected",
+      "excluded": false
+    },
+    {
+      "id": 5,
+      "text": "The index and placement subsystems had not been fully restarted in large regions for years, while S3 had grown massively",
+      "excluded": true
+    },
+    {
+      "id": 6,
+      "text": "The Service Health Dashboard admin console depended on S3, so service status could not be updated during the outage",
+      "excluded": false
+    }
+  ],
+  "runs": [
+    {
+      "run": 1,
+      "labels": [
+        {
+          "id": 1,
+          "factor": "Command input validation: the capacity-removal command accepted an input that removed a far larger set of servers than intended, and no safeguard caught the mismatch before execution.",
+          "label": "match",
+          "reason": "Describes the mistyped input causing far more servers to be removed than intended, matching K1.",
+          "key_ids": [
+            1
+          ],
+          "key_texts": [
+            "A mistyped input to an established playbook command removed far more servers than intended"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 2,
+          "factor": "Tooling and playbook design: the operation was performed using an established playbook that permitted removal of servers supporting multiple subsystems, not only the intended billing-related subsystem.",
+          "label": "match",
+          "reason": "Notes the removed servers supported two other subsystems (index and placement), matching the K3 observation about which subsystems were affected.",
+          "key_ids": [
+            3
+          ],
+          "key_texts": [
+            "The removed servers supported the index and placement subsystems, which needed a full restart; placement depends on index, so recovery was sequential"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 3,
+          "factor": "Restart and recovery time: restarting the index and placement subsystems and running the metadata integrity safety checks took longer than expected, prolonging the outage.",
+          "label": "match",
+          "reason": "Restart and metadata safety checks taking longer than expected directly matches K4.",
+          "key_ids": [
+            4
+          ],
+          "key_texts": [
+            "Restarting the subsystems and running metadata safety checks took longer than expected"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 4,
+          "factor": "Dependency of the health dashboard on the failing service: the Service Health Dashboard admin console depended on S3, so status updates could not be published during the outage.",
+          "label": "match",
+          "reason": "The SHD admin console's dependency on S3 preventing status updates matches K6.",
+          "key_ids": [
+            6
+          ],
+          "key_texts": [
+            "The Service Health Dashboard admin console depended on S3, so service status could not be updated during the outage"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 5,
+          "factor": "Cross-service dependency on S3 in the region: many AWS services relying on S3 for storage were impacted when S3 APIs became unavailable.",
+          "label": "valid_extra",
+          "reason": "The report supports that other AWS services depending on S3 were impacted, which widened the outage's impact, though it is not in the key."
+        },
+        {
+          "id": 6,
+          "factor": "Sequential recovery dependency: the placement subsystem could not recover until the index subsystem was fully functional, serializing recovery and extending the time to full service.",
+          "label": "match",
+          "reason": "Placement depending on index so recovery was sequential matches the sequential-recovery part of K3.",
+          "key_ids": [
+            3
+          ],
+          "key_texts": [
+            "The removed servers supported the index and placement subsystems, which needed a full restart; placement depends on index, so recovery was sequential"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 7,
+          "factor": "Backlog accumulation in dependent services: downstream services accumulated work during the outage and needed extra time to recover after S3 was restored.",
+          "label": "valid_extra",
+          "reason": "The report states dependent services accumulated backlogs and needed extra time to recover, which is supported and slowed full recovery, though not in the key."
+        }
+      ],
+      "counts": {
+        "match": 5,
+        "valid_extra": 2,
+        "duplicate": 0,
+        "wrong": 0
+      },
+      "total_factors": 7,
+      "recall": 0.8,
+      "precision": 1.0,
+      "missed_key_factors": [
+        "The tool allowed too much capacity to be removed too quickly, with no check against a subsystem's minimum required capacity"
+      ]
+    },
+    {
+      "run": 2,
+      "labels": [
+        {
+          "id": 1,
+          "factor": "Command tooling lacked safeguards (input validation, scope limits, confirmation of resolved server count) against an incorrectly entered parameter, so a single incorrect input could remove far more servers than intended and the playbook did not catch the overly broad removal before it reached production capacity",
+          "label": "match",
+          "reason": "It covers the mistyped input removing too many servers and the lack of safeguards or scope limits on the removal tool, matching K1 and K2.",
+          "key_ids": [
+            1,
+            2
+          ],
+          "key_texts": [
+            "A mistyped input to an established playbook command removed far more servers than intended",
+            "The tool allowed too much capacity to be removed too quickly, with no check against a subsystem's minimum required capacity"
+          ],
+          "key_excluded": [
+            false,
+            false
+          ]
+        },
+        {
+          "id": 2,
+          "factor": "Servers supporting multiple critical subsystems (index and placement) were coupled to a single removal operation, so the scope of impact exceeded the scope of the intended change",
+          "label": "match",
+          "reason": "It describes the removed servers supporting both the index and placement subsystems, which is the core of K3.",
+          "key_ids": [
+            3
+          ],
+          "key_texts": [
+            "The removed servers supported the index and placement subsystems, which needed a full restart; placement depends on index, so recovery was sequential"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 3,
+          "factor": "Critical subsystems required full restarts rather than being able to recover incrementally after capacity loss, extending the outage",
+          "label": "match",
+          "reason": "It says capacity loss forced full restarts of the subsystems, which matches the full-restart part of K3.",
+          "key_ids": [
+            3
+          ],
+          "key_texts": [
+            "The removed servers supported the index and placement subsystems, which needed a full restart; placement depends on index, so recovery was sequential"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 4,
+          "factor": "Restart and metadata integrity safety checks were slower than expected, prolonging recovery time",
+          "label": "match",
+          "reason": "It states that restarts and metadata safety checks took longer than expected, which is exactly K4.",
+          "key_ids": [
+            4
+          ],
+          "key_texts": [
+            "Restarting the subsystems and running metadata safety checks took longer than expected"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 5,
+          "factor": "Strong dependency of the service health dashboard administration console on S3 prevented status updates to customers during the outage",
+          "label": "match",
+          "reason": "It states that the SHD admin console's dependency on S3 blocked status updates, which is K6.",
+          "key_ids": [
+            6
+          ],
+          "key_texts": [
+            "The Service Health Dashboard admin console depended on S3, so service status could not be updated during the outage"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 6,
+          "factor": "Heavy reliance on S3 by other AWS services in the region propagated the impact to EC2, EBS, Lambda, and the S3 console",
+          "label": "valid_extra",
+          "reason": "The report states that other AWS services relying on S3 (EC2, EBS, Lambda, the S3 console) were impacted, so this dependency explains how the impact spread, though it is not in the key."
+        },
+        {
+          "id": 7,
+          "factor": "Accumulated backlogs in dependent services extended recovery after S3 was restored",
+          "label": "valid_extra",
+          "reason": "The report says dependent services accumulated backlogs that needed extra time to recover, which prolonged the overall recovery."
+        }
+      ],
+      "counts": {
+        "match": 5,
+        "valid_extra": 2,
+        "duplicate": 0,
+        "wrong": 0
+      },
+      "total_factors": 7,
+      "recall": 1.0,
+      "precision": 1.0,
+      "missed_key_factors": []
+    },
+    {
+      "run": 3,
+      "labels": [
+        {
+          "id": 1,
+          "factor": "The server-removal command lacked safeguards against input errors: a single incorrect input removed a much larger set of servers than intended, and no guard (confirmation, capacity threshold, or blast-radius check) limited the removal.",
+          "label": "match",
+          "reason": "It covers the mistyped input removing too many servers (K1) and the lack of a guard such as a capacity threshold or blast-radius check on the removal (K2).",
+          "key_ids": [
+            1,
+            2
+          ],
+          "key_texts": [
+            "A mistyped input to an established playbook command removed far more servers than intended",
+            "The tool allowed too much capacity to be removed too quickly, with no check against a subsystem's minimum required capacity"
+          ],
+          "key_excluded": [
+            false,
+            false
+          ]
+        },
+        {
+          "id": 2,
+          "factor": "The index and placement subsystems could not tolerate the removal of a significant portion of their capacity without a full restart, so the capacity loss caused a complete S3 request outage rather than a degraded state.",
+          "label": "match",
+          "reason": "It describes the index and placement subsystems needing a full restart after losing significant capacity, which caused the S3 request outage, matching K3.",
+          "key_ids": [
+            3
+          ],
+          "key_texts": [
+            "The removed servers supported the index and placement subsystems, which needed a full restart; placement depends on index, so recovery was sequential"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 3,
+          "factor": "Restart and recovery procedures were slow because the safety checks validating metadata integrity took longer than expected, extending the outage duration.",
+          "label": "match",
+          "reason": "It states that restart and metadata safety checks took longer than expected, extending the outage, matching K4.",
+          "key_ids": [
+            4
+          ],
+          "key_texts": [
+            "Restarting the subsystems and running metadata safety checks took longer than expected"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 4,
+          "factor": "Tight coupling and lack of isolation: the index subsystem is required by the placement subsystem and by all S3 request types, and many dependent AWS services rely on S3 in the same region, so the failure cascaded widely.",
+          "label": "valid_extra",
+          "reason": "The report supports the dependency of placement on index and of other AWS services on S3 widening the impact, which is not a distinct answer-key cause beyond the sequential recovery point."
+        },
+        {
+          "id": 5,
+          "factor": "The Service Health Dashboard administration console had a hidden dependency on S3, so per-service status could not be updated until 11:37AM PST; this degraded customer communication, which relied on fallback channels (Twitter feed and SHD banner text) in the meantime.",
+          "label": "match",
+          "reason": "It identifies the SHD admin console's dependency on S3 that prevented status updates during the outage, matching K6.",
+          "key_ids": [
+            6
+          ],
+          "key_texts": [
+            "The Service Health Dashboard admin console depended on S3, so service status could not be updated during the outage"
+          ],
+          "key_excluded": [
+            false
+          ]
+        }
+      ],
+      "counts": {
+        "match": 4,
+        "valid_extra": 1,
+        "duplicate": 0,
+        "wrong": 0
+      },
+      "total_factors": 5,
+      "recall": 1.0,
+      "precision": 1.0,
+      "missed_key_factors": []
+    },
+    {
+      "run": 4,
+      "labels": [
+        {
+          "id": 1,
+          "factor": "Command input validation: the removal tooling accepted an input that resulted in a far larger set of servers being removed than intended, and had no safeguard (such as scope or count checks) to catch the mismatch.",
+          "label": "match",
+          "reason": "Covers the mistyped input removing far more servers than intended and the lack of safeguards (scope/count checks) in the tooling, matching K1 and K2.",
+          "key_ids": [
+            1,
+            2
+          ],
+          "key_texts": [
+            "A mistyped input to an established playbook command removed far more servers than intended",
+            "The tool allowed too much capacity to be removed too quickly, with no check against a subsystem's minimum required capacity"
+          ],
+          "key_excluded": [
+            false,
+            false
+          ]
+        },
+        {
+          "id": 2,
+          "factor": "Architectural dependency: the index and placement subsystems depended on the same servers and the placement subsystem depended on the index subsystem, so losing capacity cascaded into a full-region outage.",
+          "label": "match",
+          "reason": "Describes the removed servers supporting index and placement, placement depending on index, and the need for full restart, matching K3.",
+          "key_ids": [
+            3
+          ],
+          "key_texts": [
+            "The removed servers supported the index and placement subsystems, which needed a full restart; placement depends on index, so recovery was sequential"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 3,
+          "factor": "Recovery procedure duration: restart and metadata integrity safety checks were slow and not sized for the scale of the failure, extending the outage.",
+          "label": "match",
+          "reason": "Restart and metadata safety checks taking longer than expected is exactly K4.",
+          "key_ids": [
+            4
+          ],
+          "key_texts": [
+            "Restarting the subsystems and running metadata safety checks took longer than expected"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 4,
+          "factor": "Downstream service coupling: many dependent AWS services relied on S3 in the region, amplifying the blast radius of the S3 disruption.",
+          "label": "valid_extra",
+          "reason": "The report states that EC2, EBS, Lambda and the S3 console were impacted by the S3 outage, supporting downstream coupling as amplifying impact, though it is not in the key."
+        },
+        {
+          "id": 5,
+          "factor": "Communication tooling dependency: the Service Health Dashboard depended on S3, so status could not be updated during the incident and customers had to rely on fallback channels.",
+          "label": "match",
+          "reason": "The SHD admin console's dependency on S3 preventing status updates is K6.",
+          "key_ids": [
+            6
+          ],
+          "key_texts": [
+            "The Service Health Dashboard admin console depended on S3, so service status could not be updated during the outage"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 6,
+          "factor": "Backlog accumulation in dependent services: downstream services accrued work during the outage that extended their recovery time after S3 was restored.",
+          "label": "valid_extra",
+          "reason": "The report states dependent services accumulated backlogs and needed extra time to recover, which extended recovery but is not in the key."
+        }
+      ],
+      "counts": {
+        "match": 4,
+        "valid_extra": 2,
+        "duplicate": 0,
+        "wrong": 0
+      },
+      "total_factors": 6,
+      "recall": 1.0,
+      "precision": 1.0,
+      "missed_key_factors": []
+    },
+    {
+      "run": 5,
+      "labels": [
+        {
+          "id": 1,
+          "factor": "Incorrect input to a command in an established operational playbook, with the tool not limiting the scope of removal to a small set of servers",
+          "label": "match",
+          "reason": "Covers the mistyped input to the playbook command (K1) and the tool not limiting the scope of removal (K2).",
+          "key_ids": [
+            1,
+            2
+          ],
+          "key_texts": [
+            "A mistyped input to an established playbook command removed far more servers than intended",
+            "The tool allowed too much capacity to be removed too quickly, with no check against a subsystem's minimum required capacity"
+          ],
+          "key_excluded": [
+            false,
+            false
+          ]
+        },
+        {
+          "id": 2,
+          "factor": "Removal of a significant portion of capacity forced full restarts of subsystems rather than a gradual or partial recovery",
+          "label": "match",
+          "reason": "Removing significant capacity forced full restarts of the index and placement subsystems, matching K3.",
+          "key_ids": [
+            3
+          ],
+          "key_texts": [
+            "The removed servers supported the index and placement subsystems, which needed a full restart; placement depends on index, so recovery was sequential"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 3,
+          "factor": "Restart and safety-check processes took longer than expected, extending the outage",
+          "label": "match",
+          "reason": "Restart and safety checks took longer than expected, matching K4.",
+          "key_ids": [
+            4
+          ],
+          "key_texts": [
+            "Restarting the subsystems and running metadata safety checks took longer than expected"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 4,
+          "factor": "Tight coupling between services: dependent AWS services in US-EAST-1 failed when S3 APIs became unavailable",
+          "label": "valid_extra",
+          "reason": "The report states dependent AWS services (EC2, EBS, Lambda, console) were impacted when S3 APIs were unavailable, which widened the blast radius."
+        },
+        {
+          "id": 5,
+          "factor": "Hidden dependency of the status dashboard administration console on S3, which prevented timely customer communication during the incident",
+          "label": "match",
+          "reason": "The SHD admin console's dependency on S3 prevented status updates, matching K6.",
+          "key_ids": [
+            6
+          ],
+          "key_texts": [
+            "The Service Health Dashboard admin console depended on S3, so service status could not be updated during the outage"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 6,
+          "factor": "Accumulated backlog in dependent services extended recovery time after S3 was restored",
+          "label": "valid_extra",
+          "reason": "The report says some dependent services had accumulated backlog and needed additional time to recover after S3 was restored."
+        }
+      ],
+      "counts": {
+        "match": 4,
+        "valid_extra": 2,
+        "duplicate": 0,
+        "wrong": 0
+      },
+      "total_factors": 6,
+      "recall": 1.0,
+      "precision": 1.0,
+      "missed_key_factors": []
+    }
+  ],
+  "summary": {
+    "successful_runs": 5,
+    "recall": {
+      "mean": 0.96,
+      "min": 0.8,
+      "max": 1.0
+    },
+    "precision": {
+      "mean": 1.0,
+      "min": 1.0,
+      "max": 1.0
+    }
+  }
+}

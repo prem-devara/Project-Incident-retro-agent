@@ -6,6 +6,7 @@ Notes for the README. Raw, dated, in build order.
 ## README highlights
 - An LLM judge can be lenient in ways prompt instructions don't fix. I caught it accepting a backwards cause by hand, so the judge needs human spot-checks and its own test.
 - Planted errors were easy for the judge to catch (15/15); the agent's own subtle errors were not, so synthetic tests can overstate judge reliability.
+- Two apparent agent weaknesses turned out to be scoring artifacts. I read the agent's actual factors before trusting a low score.
 
 ## Setup
 - Built with Claude Code (VS Code) as the coding assistant; agent calls models through aisuite, so providers can be swapped.
@@ -54,6 +55,16 @@ Notes for the README. Raw, dated, in build order.
 - Judge test (`evaluate.py --judge-test`): appended 5 planted bad factors (4 wrong, 1 duplicate) to run 1's 11 factors and judged the list 3 times. Caught 15/15 across 3 runs, and no drift on the originals (all 11 kept their scores.json labels).
 - But the judge still accepted the agent's own subtler version of P1 (run 5 #11), so planted errors overstate judge reliability; real agent errors are subtler.
 
+## AWS S3 2017 (second incident)
+- Recall: 0.84, precision: 1.00 (mean of 5 runs).
+- Runs 2–5 all missed the same factor: the tool allowed too much capacity to be removed at once, with no minimum-capacity check. Run 1 found it, so the input supports it.
+- ~~Pattern: the agent tends to stop at the human error (the typo) instead of asking why the system allowed it.~~
+- Correction: that "pattern" was a scoring artifact. The agent combined the typo and the missing safeguard in one factor, and the judge could credit only one answer-key line per factor.
+- Fix: the judge now gives a list of key lines (`key_ids`) for each match, so a factor that combines two causes gets credit for both. After rescoring: AWS S3 recall 0.84 → 0.96, Google Cloud 0.83 → 1.00 (same cause: blank fields combined with missing validation in one factor), GitLab 1.00 (unchanged).
+- The judge itself varies. On rescore, AWS S3 run 1 dropped 1.00 → 0.80 with no change in agent output: the judge matched the playbook factor to a different key line than last time.
+- Kept the answer key unchanged rather than adjust it after seeing results.
+- Positive: Step 4 correctly merged a mitigation (Twitter/banner status updates) into the dashboard factor instead of keeping it as a cause.
+
 ## Pending
 - ~~Test the judge with planted wrong factors.~~ Done.
-- Automated eval (LLM-as-judge) across 10 postmortems.
+- Automated eval across 5 incidents (GitLab, AWS S3 done; Google Cloud, AWS DynamoDB, CrowdStrike to do).

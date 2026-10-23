@@ -1,0 +1,40 @@
+{
+  "factors": [
+    {
+      "factor": "Untested new code path: the Service Control quota policy checks were rolled out region by region but never exercised, because the path only triggers on a policy change, so the defect (null pointer on blank fields) went undetected until production.",
+      "evidence": "\"This code change and binary release went through a region by region rollout, but the new code path was never exercised during this rollout because it needed a policy change to trigger it.\""
+    },
+    {
+      "factor": "Insufficient input validation of policy data: blank fields in a policy change were accepted and not handled by the consuming code, causing a null pointer crash.",
+      "evidence": "\"This policy data contained unintended blank fields... This pulled in blank fields for this policy change and exercised the new code path, which hit a null pointer and caused the binaries to go into a crash loop.\""
+    },
+    {
+      "factor": "Global, near-instant replication of regional policy metadata with no staged or canary propagation of configuration changes, allowing a single bad change to reach every region within seconds.",
+      "evidence": "\"This metadata was replicated globally within seconds.\""
+    },
+    {
+      "factor": "Crash loop occurred simultaneously in every regional deployment, so the blast radius was global rather than contained to one region.",
+      "evidence": "\"This occurred globally, in each regional deployment.\""
+    },
+    {
+      "factor": "Recovery was slowed by a herd effect when restarting Service Control tasks overloaded the underlying Spanner table in larger regions, requiring throttling and traffic rerouting.",
+      "evidence": "\"as Service Control tasks restarted, it created a herd effect on the underlying infrastructure it depends on (the Spanner table), overloading that infrastructure.\""
+    },
+    {
+      "factor": "Mitigation depended on a red-button kill switch that had to be deployed manually and took about 40 minutes to roll out, delaying recovery.",
+      "evidence": "\"Within 40 minutes of the incident, the red-button rollout was completed, and recovery started across regions\""
+    },
+    {
+      "factor": "Dependency of the status/communication infrastructure (Cloud Service Health) on the same failing Google Cloud infrastructure delayed customer notification by about an hour.",
+      "evidence": "\"The first incident report was posted to Cloud Service Health ~1h after the start of the crashes, because the Cloud Service Health infrastructure was down due to this outage.\""
+    },
+    {
+      "factor": "Customers' own monitoring ran on Google Cloud and failed alongside the outage, leaving them without a signal of the incident or its impact.",
+      "evidence": "\"For some customers, the monitoring infrastructure they had running on Google Cloud was also failing, leaving them without a signal of the incident or an understanding of the impact.\""
+    },
+    {
+      "factor": "Lack of a fail-safe default: the policy check system did not fail open or degrade gracefully when policy data was malformed, so API requests returned errors broadly.",
+      "evidence": "\"Customers had intermittent API and user-interface access issues to the impacted services.\""
+    }
+  ]
+}

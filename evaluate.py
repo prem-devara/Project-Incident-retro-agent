@@ -92,9 +92,13 @@ def validate_judgement(data, factor_count, key_count):
         if label not in LABELS:
             raise ValueError(f"factor #{n} has invalid label '{label}'")
         if label == "match":
-            key_id = item.get("key_id")
-            if not isinstance(key_id, int) or not 1 <= key_id <= key_count:
-                raise ValueError(f"factor #{n} is a match but has an invalid 'key_id'")
+            key_ids = item.get("key_ids")
+            if (not isinstance(key_ids, list) or not key_ids
+                    or len(set(key_ids)) != len(key_ids)
+                    or not all(isinstance(k, int) and 1 <= k <= key_count for k in key_ids)):
+                raise ValueError(
+                    f"factor #{n} is a match but 'key_ids' must be a non-empty list "
+                    f"of distinct answer-key numbers")
         if label == "duplicate":
             target = item.get("duplicate_of")
             if not isinstance(target, int) or not 1 <= target < n:
@@ -121,7 +125,9 @@ contributing factors written by the agent being graded (#1, #2, ...).
 Give EVERY agent factor exactly one label:
 - "match": it describes the same cause (mechanism) as an answer-key factor, even if it covers
   only part of that factor, adds extra detail, or uses completely different wording.
-  Judge by mechanism, not wording. Give that factor's number as "key_id" (for K3, use 3).
+  Judge by mechanism, not wording. Give the matched factor numbers as a "key_ids" list
+  (for K3, use [3]). If one agent factor combines causes from several answer-key factors
+  (for example, bad data AND missing validation), list every one it covers, e.g. [1, 3].
 - "valid_extra": it is not in the answer key, but the incident report supports it as something
   that caused the incident or slowed recovery.
 - "duplicate": it repeats the same issue as an EARLIER agent factor.
@@ -132,8 +138,8 @@ Give EVERY agent factor exactly one label:
 Each label needs a one-sentence "reason".
 
 Return ONLY JSON in this format, with no other text:
-{{"labels": [{{"id": 1, "label": "match | valid_extra | duplicate | wrong", "key_id": 3, "duplicate_of": 1, "reason": "..."}}]}}
-Include "key_id" only for "match" and "duplicate_of" only for "duplicate".
+{{"labels": [{{"id": 1, "label": "match | valid_extra | duplicate | wrong", "key_ids": [3], "duplicate_of": 1, "reason": "..."}}]}}
+Include "key_ids" only for "match" and "duplicate_of" only for "duplicate".
 
 ANSWER KEY CONTRIBUTING FACTORS:
 {key_list}
@@ -163,16 +169,16 @@ def score_run(labels, key_factors, agent_factors):
         result = {"id": item["id"], "factor": factor["factor"],
                   "label": item["label"], "reason": item["reason"]}
         if item["label"] == "match":
-            key = key_by_id[item["key_id"]]
-            result["key_id"] = key["id"]
-            result["key_text"] = key["text"]
-            result["key_excluded"] = key["excluded"]
+            keys = [key_by_id[k] for k in item["key_ids"]]
+            result["key_ids"] = [k["id"] for k in keys]
+            result["key_texts"] = [k["text"] for k in keys]
+            result["key_excluded"] = [k["excluded"] for k in keys]
         if item["label"] == "duplicate":
             result["duplicate_of"] = item["duplicate_of"]
         results.append(result)
 
     counts = {label: sum(r["label"] == label for r in results) for label in LABELS}
-    matched = {r["key_id"] for r in results if r["label"] == "match"}
+    matched = {k for r in results if r["label"] == "match" for k in r["key_ids"]}
     recalled = [k for k in counted_keys if k in matched]
 
     return {
@@ -224,11 +230,11 @@ def print_table(runs, summary):
 # ---------- Judge test ----------
 
 def label_summary(item):
-    """Label plus its target, e.g. 'duplicate of #5' or 'match K2'."""
+    """Label plus its target, e.g. 'duplicate of #5' or 'match K2+K4'."""
     if item["label"] == "duplicate":
         return f"duplicate of #{item['duplicate_of']}"
     if item["label"] == "match":
-        return f"match K{item['key_id']}"
+        return "match " + "+".join(f"K{k}" for k in item["key_ids"])
     return item["label"]
 
 
@@ -263,7 +269,7 @@ def run_judge_test(incident_text, key_factors, base_folder):
                 continue
             item = run["labels"][n - 1]
             entry = {"run": run["run"], "label": item["label"], "reason": item["reason"]}
-            for field in ("key_id", "duplicate_of"):
+            for field in ("key_ids", "duplicate_of"):
                 if field in item:
                     entry[field] = item[field]
             per_run.append(entry)
