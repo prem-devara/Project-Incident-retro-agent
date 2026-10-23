@@ -1,0 +1,176 @@
+{
+  "factor_verdicts": [
+    {
+      "id": 1,
+      "verdict": "keep",
+      "reason": "Report states the definition expected 21 inputs while the sensor code supplied 20; this mismatch directly caused the out-of-bounds read.",
+      "new_wording": "The IPC Template Type definition declared 21 inputs while the sensor code supplied only 20 values to the Content Interpreter, and no mechanism existed to detect or reconcile this interface mismatch before release. This mismatch also meant the Content Validator was assessing content against the declared 21-input expectation rather than the 20 values actually supplied, so it passed content that would crash sensors."
+    },
+    {
+      "id": 2,
+      "verdict": "keep",
+      "reason": "Evidence shows all 12 test cases used a wildcard in the 21st field, so the 21st-input access path was never exercised.",
+      "new_wording": "Automated testing used a static set of 12 test cases in which all Template Instances used a wildcard in the 21st field, so the code path reading the 21st input was never exercised and the out-of-bounds read went undetected. Testing focused on functional validation rather than input-boundary handling, and stress testing with a test Template Instance did not exercise the faulty path either."
+    },
+    {
+      "id": 3,
+      "verdict": "merge with #2",
+      "reason": "Describes the same underlying testing-coverage gap; report states testing focused on functional validation, which is the same issue as #2."
+    },
+    {
+      "id": 4,
+      "verdict": "merge with #2",
+      "reason": "Same testing-coverage gap; the stress test used a test instance that did not touch the 21st input, so it is a facet of #2."
+    },
+    {
+      "id": 5,
+      "verdict": "merge with #1",
+      "reason": "The validator checked against the declared 21 inputs, which is the same unreconciled 21-vs-20 contract issue as #1."
+    },
+    {
+      "id": 6,
+      "verdict": "keep",
+      "reason": "Report shows prior instances never used the 21st input and the July 19 non-wildcard instance activated the dormant defect, explaining why it surfaced then."
+    },
+    {
+      "id": 7,
+      "verdict": "remove",
+      "reason": "Evidence only says content is configuration data; the report says nothing about absence of staged rollout, canary, or certification, so this is speculation."
+    },
+    {
+      "id": 8,
+      "verdict": "keep",
+      "reason": "Report shows the crash occurred in the kernel driver csagent.sys loaded early at boot, which made a content defect cause a system-wide bugcheck.",
+      "new_wording": "The Content Interpreter processing Rapid Response Content runs in the csagent.sys kernel driver, loaded early in boot, so an invalid memory read caused by content resulted in a system bugcheck rather than being contained."
+    },
+    {
+      "id": 9,
+      "verdict": "keep",
+      "reason": "Crash dump shows a NULL check but an unguarded read through an invalid pointer at index 0x14, directly causing the fault.",
+      "new_wording": "The sensor code lacked bounds validation when reading the input pointer array: it checked for a NULL pointer but did not verify that the index was within the 20-element array, so the read at index 0x14 went through an invalid pointer."
+    },
+    {
+      "id": 10,
+      "verdict": "remove",
+      "reason": "The evidence only gives the fleet-online percentage on July 29; it does not show slow recovery or inability to remotely revert the channel file, so the claim is speculation."
+    }
+  ],
+  "factors": [
+    {
+      "factor": "The IPC Template Type definition declared 21 inputs while the sensor code supplied only 20 values to the Content Interpreter, and no mechanism existed to detect or reconcile this interface mismatch before release. This mismatch also meant the Content Validator was assessing content against the declared 21-input expectation rather than the 20 values actually supplied, so it passed content that would crash sensors.",
+      "evidence": "\"The definition of the IPC Template Type in the Template Type Definitions file stated that it expected 21 input fields. The sensor code that invoked the Content Interpreter with Channel File 291's Template Instances supplied only 20 input values to match against.\" | \"The Content Validator evaluated the new Template Instances. It based its assessment on the expectation that the IPC Template Type would be provided with 21 inputs. The new Template Instances were sent to sensors.\""
+    },
+    {
+      "factor": "Automated testing used a static set of 12 test cases in which all Template Instances used a wildcard in the 21st field, so the code path reading the 21st input was never exercised and the out-of-bounds read went undetected. Testing focused on functional validation rather than input-boundary handling, and stress testing with a test Template Instance did not exercise the faulty path either.",
+      "evidence": "\"For automated testing, a static set of 12 test cases was selected... it used a regex wildcard matching criterion in the 21st field for all Template Instances.\" | \"Manual and automated testing were performed during development, focused on functional validation: the correct flow of security-relevant data through the Template Type and the generation of appropriate detection alerts.\" | \"The IPC Template Type was stress tested with a test Template Instance in a test environment consisting of a variety of operating systems and workloads. It passed the stress test and was validated for use.\""
+    },
+    {
+      "factor": "Latent defect was activated by a later content deployment: earlier IPC Template Instances used wildcard matching and never touched the 21st input, so the risk stayed hidden until a non-wildcard instance was introduced on July 19.",
+      "evidence": "\"No IPC Template Instances in previous channel file versions had used the 21st input parameter field.\""
+    },
+    {
+      "factor": "The Content Interpreter processing Rapid Response Content runs in the csagent.sys kernel driver, loaded early in boot, so an invalid memory read caused by content resulted in a system bugcheck rather than being contained.",
+      "evidence": "\"The Falcon sensor uses a kernel driver (csagent.sys), loaded from an early phase of system boot\""
+    },
+    {
+      "factor": "The sensor code lacked bounds validation when reading the input pointer array: it checked for a NULL pointer but did not verify that the index was within the 20-element array, so the read at index 0x14 went through an invalid pointer.",
+      "evidence": "\"The code performed a NULL pointer check, then read through the invalid pointer, resulting in the out-of-bounds read and the bugcheck.\""
+    }
+  ],
+  "action_items": [
+    {
+      "action": "Reconcile the IPC Template Type input count between the Template Type Definitions file and the sensor code so that both declare and supply the same number of inputs, and add a build-time or CI check that fails when they diverge.",
+      "owner_role": "Sensor engineering team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Add bounds checking on all Content Interpreter input array accesses in csagent.sys so that out-of-range indices return a safe default or a logged error instead of performing an unguarded read.",
+      "owner_role": "Sensor engineering team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Extend the Content Validator to check each Template Instance against the number of inputs the sensor actually supplies at runtime, not only the declared count in the Template Type Definitions file, and block deployment on mismatch.",
+      "owner_role": "Content engineering team",
+      "type": "detect",
+      "priority": "high"
+    },
+    {
+      "action": "Build a fuzzing and boundary-condition test suite for every Template Type that exercises every input index, including non-wildcard matching criteria and inputs beyond the currently used set, and run it in the release pipeline before any content ships.",
+      "owner_role": "Quality assurance team",
+      "type": "detect",
+      "priority": "high"
+    },
+    {
+      "action": "Require that test coverage for each Template Type include Template Instances that exercise all declared input fields, and reject test plans that rely on a static set of wildcard-only cases.",
+      "owner_role": "Quality assurance team",
+      "type": "detect",
+      "priority": "medium"
+    },
+    {
+      "action": "Evaluate whether Rapid Response Content parsing can be moved to user-mode or isolated from the kernel driver's boot-time code path, or otherwise contained so a content defect cannot crash the system at boot-level privilege.",
+      "owner_role": "Sensor architecture team",
+      "type": "prevent",
+      "priority": "medium"
+    }
+  ],
+  "changes": [
+    {
+      "change": "Reworded #1: The IPC Template Type definition declared 21 inputs while the sensor code supplied only 20 values to the Content Interpreter, and no mechanism existed to detect or reconcile this interface mismatch before release. This mismatch also meant the Content Validator was assessing content against the declared 21-input expectation rather than the 20 values actually supplied, so it passed content that would crash sensors.",
+      "reason": "Report states the definition expected 21 inputs while the sensor code supplied 20; this mismatch directly caused the out-of-bounds read."
+    },
+    {
+      "change": "Reworded #2: Automated testing used a static set of 12 test cases in which all Template Instances used a wildcard in the 21st field, so the code path reading the 21st input was never exercised and the out-of-bounds read went undetected. Testing focused on functional validation rather than input-boundary handling, and stress testing with a test Template Instance did not exercise the faulty path either.",
+      "reason": "Evidence shows all 12 test cases used a wildcard in the 21st field, so the 21st-input access path was never exercised."
+    },
+    {
+      "change": "Merged #3 into #2: Testing was focused on functional validation rather than robustness and input-boundary handling, so the out-of-bounds read was not detected.",
+      "reason": "Describes the same underlying testing-coverage gap; report states testing focused on functional validation, which is the same issue as #2."
+    },
+    {
+      "change": "Merged #4 into #2: Stress testing used a test Template Instance and environment that did not reveal the fault, giving false confidence that the Template Type was safe.",
+      "reason": "Same testing-coverage gap; the stress test used a test instance that did not touch the 21st input, so it is a facet of #2."
+    },
+    {
+      "change": "Merged #5 into #1: The Content Validator checked new Template Instances against the declared 21-input expectation rather than the 20 values the sensor actually supplies, so it passed content that would crash sensors.",
+      "reason": "The validator checked against the declared 21 inputs, which is the same unreconciled 21-vs-20 contract issue as #1."
+    },
+    {
+      "change": "Removed #7: Rapid Response Content is configuration data deployed to production sensors without the staged rollout, canary, or WHQL-style certification applied to sensor code, so a faulty content update reached the fleet at once.",
+      "reason": "Evidence only says content is configuration data; the report says nothing about absence of staged rollout, canary, or certification, so this is speculation."
+    },
+    {
+      "change": "Reworded #8: The Content Interpreter processing Rapid Response Content runs in the csagent.sys kernel driver, loaded early in boot, so an invalid memory read caused by content resulted in a system bugcheck rather than being contained.",
+      "reason": "Report shows the crash occurred in the kernel driver csagent.sys loaded early at boot, which made a content defect cause a system-wide bugcheck."
+    },
+    {
+      "change": "Reworded #9: The sensor code lacked bounds validation when reading the input pointer array: it checked for a NULL pointer but did not verify that the index was within the 20-element array, so the read at index 0x14 went through an invalid pointer.",
+      "reason": "Crash dump shows a NULL check but an unguarded read through an invalid pointer at index 0x14, directly causing the fault."
+    },
+    {
+      "change": "Removed #10: Recovery was slow and affected a large share of the fleet, with roughly 99% of sensors back online only after about ten days, indicating limited ability to remotely revert or disable the faulty channel file.",
+      "reason": "The evidence only gives the fleet-online percentage on July 29; it does not show slow recovery or inability to remotely revert the channel file, so the claim is speculation."
+    },
+    {
+      "change": "Removed the staged rollout (canary cohorts) action item.",
+      "reason": "It only addressed factor #7, which was removed as unsupported by the report."
+    },
+    {
+      "change": "Removed the crash-telemetry monitoring and automatic rollback/kill-switch action item.",
+      "reason": "It only addressed factor #10, which was removed as unsupported."
+    },
+    {
+      "change": "Removed the remote revert/disable channel file mechanism action item.",
+      "reason": "It only addressed factor #10, which was removed as unsupported."
+    },
+    {
+      "change": "Removed the boot crash-loop recovery runbook action item.",
+      "reason": "It only addressed factor #10 (slow recovery), which was removed as unsupported."
+    },
+    {
+      "change": "Removed the review of the Rapid Response Content deployment path against WHQL-style certification requirements.",
+      "reason": "It only addressed factor #7, which was removed as unsupported."
+    }
+  ]
+}

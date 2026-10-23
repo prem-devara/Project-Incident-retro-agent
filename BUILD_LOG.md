@@ -7,6 +7,18 @@ Notes for the README. Raw, dated, in build order.
 - An LLM judge can be lenient in ways prompt instructions don't fix. I caught it accepting a backwards cause by hand, so the judge needs human spot-checks and its own test.
 - Planted errors were easy for the judge to catch (15/15); the agent's own subtle errors were not, so synthetic tests can overstate judge reliability.
 - Two apparent agent weaknesses turned out to be scoring artifacts. I read the agent's actual factors before trusting a low score.
+- On CrowdStrike, the agent named the kernel-mode driver as the reason a content bug crashed whole machines, a factor CrowdStrike's own findings left out.
+
+## Results
+Recall / precision, mean of 5 runs.
+
+| Incident | Recall | Precision |
+|---|---|---|
+| GitLab 2017 | 1.00 | 1.00 |
+| AWS S3 2017 | 0.96 | 1.00 |
+| Google Cloud | 1.00 | 1.00 |
+| AWS DynamoDB 2025 | 0.97 | 1.00 |
+| CrowdStrike 2024 | 0.92 | 1.00 |
 
 ## Setup
 - Built with Claude Code (VS Code) as the coding assistant; agent calls models through aisuite, so providers can be swapped.
@@ -74,6 +86,17 @@ Notes for the README. Raw, dated, in build order.
 - The one real miss: the Network Manager backlog. The agent noted that network state was slow to propagate but not why, skipping the middle link in a long failure chain.
 - Lesson: token limits sized for short inputs don't scale. Truncation needs its own error, not a retry.
 
+## CrowdStrike 2024 (fifth incident)
+- Recall 0.92, precision 1.00 (mean of 5 runs). 5/5 runs completed.
+- Runs 2 and 4 missed the same factor: new Template Instances shipped with only the Content Validator check, never tested on a sensor.
+- Spot-checked run 2: a genuine miss, though that answer-key line is the most thinly supported by the input. Kept the key unchanged.
+- The input is unusually explanatory (CrowdStrike's narrative is analysis-heavy), so scores here say less than DynamoDB's.
+- Notable valid extras:
+  - The kernel-mode driver turning a content bug into a full system crash, which CrowdStrike's own findings don't list.
+  - Early successful deployments giving false assurance.
+
 ## Pending
 - ~~Test the judge with planted wrong factors.~~ Done.
-- Automated eval across 5 incidents (GitLab, AWS S3, Google Cloud, AWS DynamoDB done; CrowdStrike to do).
+- ~~Automated eval across 5 incidents (GitLab, AWS S3, Google Cloud, AWS DynamoDB, CrowdStrike).~~ Done.
+- Write README.
+- Remove test.py, make repo public.

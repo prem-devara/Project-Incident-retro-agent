@@ -1,0 +1,20 @@
+CONTRIBUTING FACTORS
+- The IPC Template Type was defined with 21 input fields but the sensor code supplied only 20, and the count was not validated when the sensor was compiled
+- The Content Interpreter had no runtime bounds check on the input array, so reading the 21st input caused an out-of-bounds memory read and a crash
+- Testing used only wildcard matching criteria for the 21st field, so the mismatch was never exercised before release
+- The Content Validator checked new content against the 21-input definition rather than the 20 inputs actually provided, so it passed the problematic Template Instance
+- New Template Instances were released without being tested in the Content Interpreter on a sensor; only the original Template Type was stress tested
+- Template Instances were deployed to all sensors at once, with no staged rollout (not in input)
+
+ACTION ITEMS
+- Validate the number of input fields in each Template Type at sensor compile time
+- Add runtime bounds checks and an input-array size check to the Content Interpreter
+- Correct the IPC Template Type to provide 21 inputs
+- Fuzz test the Channel 291 Template Type and other Rapid Response Content handlers
+- Add automated tests with non-wildcard matching criteria for every field of every Template Type
+- Add Content Validator checks that matching criteria do not use more fields than the sensor provides
+- Only allow wildcard matching in the 21st field of Channel File 291 content
+- Test every new Template Instance before production, not just the Template Type
+- Deploy Template Instances in stages: canary, then wider rings with bake-in time and rollback
+- Give customers control over where and when Rapid Response Content is deployed
+- Commission independent third-party reviews of sensor code and the end-to-end quality process

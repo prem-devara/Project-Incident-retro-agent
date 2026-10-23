@@ -1,0 +1,459 @@
+{
+  "input_file": "data/crowdstrike_timeline.txt",
+  "answer_key": "eval/crowdstrike_answer_key.txt",
+  "judge_model": "anthropic:claude-sonnet-5-5",
+  "rescored": false,
+  "key_factors": [
+    {
+      "id": 1,
+      "text": "The IPC Template Type was defined with 21 input fields but the sensor code supplied only 20, and the count was not validated when the sensor was compiled",
+      "excluded": false
+    },
+    {
+      "id": 2,
+      "text": "The Content Interpreter had no runtime bounds check on the input array, so reading the 21st input caused an out-of-bounds memory read and a crash",
+      "excluded": false
+    },
+    {
+      "id": 3,
+      "text": "Testing used only wildcard matching criteria for the 21st field, so the mismatch was never exercised before release",
+      "excluded": false
+    },
+    {
+      "id": 4,
+      "text": "The Content Validator checked new content against the 21-input definition rather than the 20 inputs actually provided, so it passed the problematic Template Instance",
+      "excluded": false
+    },
+    {
+      "id": 5,
+      "text": "New Template Instances were released without being tested in the Content Interpreter on a sensor; only the original Template Type was stress tested",
+      "excluded": false
+    },
+    {
+      "id": 6,
+      "text": "Template Instances were deployed to all sensors at once, with no staged rollout",
+      "excluded": true
+    }
+  ],
+  "runs": [
+    {
+      "run": 1,
+      "labels": [
+        {
+          "id": 1,
+          "factor": "Mismatch between the IPC Template Type definition (21 expected inputs) and the sensor code that supplied only 20 input values, so the Content Interpreter had no data for the 21st field.",
+          "label": "match",
+          "reason": "Describes the same 21-defined vs 20-supplied input mismatch between the Template Type definition and sensor code.",
+          "key_ids": [
+            1
+          ],
+          "key_texts": [
+            "The IPC Template Type was defined with 21 input fields but the sensor code supplied only 20, and the count was not validated when the sensor was compiled"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 2,
+          "factor": "Content Validator checked channel files against the expected 21-input definition rather than verifying that the sensor could actually supply the inputs, so the mismatch was not caught before deployment.",
+          "label": "match",
+          "reason": "The Content Validator checked against the 21-input definition rather than the 20 inputs actually supplied, so it passed the problematic instances.",
+          "key_ids": [
+            4
+          ],
+          "key_texts": [
+            "The Content Validator checked new content against the 21-input definition rather than the 20 inputs actually provided, so it passed the problematic Template Instance"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 3,
+          "factor": "Testing was focused on functional validation and used a static set of test cases with a wildcard matching criterion in the 21st field, so the code path that reads the 21st input with a non-wildcard criterion was never exercised.",
+          "label": "match",
+          "reason": "Covers testing with only wildcard criteria in the 21st field and the stress test being limited to the original Template Type/instance, so the new non-wildcard instances were never exercised.",
+          "key_ids": [
+            3,
+            5
+          ],
+          "key_texts": [
+            "Testing used only wildcard matching criteria for the 21st field, so the mismatch was never exercised before release",
+            "New Template Instances were released without being tested in the Content Interpreter on a sensor; only the original Template Type was stress tested"
+          ],
+          "key_excluded": [
+            false,
+            false
+          ]
+        },
+        {
+          "id": 4,
+          "factor": "The sensor's kernel-mode parser lacked a bounds check on the input array before reading the 21st element; a NULL check was performed but did not guard against the out-of-range index, turning a content error into a system crash.",
+          "label": "match",
+          "reason": "Describes the missing bounds check on the input array in the Content Interpreter causing the out-of-bounds read and crash.",
+          "key_ids": [
+            2
+          ],
+          "key_texts": [
+            "The Content Interpreter had no runtime bounds check on the input array, so reading the 21st input caused an out-of-bounds memory read and a crash"
+          ],
+          "key_excluded": [
+            false
+          ]
+        }
+      ],
+      "counts": {
+        "match": 4,
+        "valid_extra": 0,
+        "duplicate": 0,
+        "wrong": 0
+      },
+      "total_factors": 4,
+      "recall": 1.0,
+      "precision": 1.0,
+      "missed_key_factors": []
+    },
+    {
+      "run": 2,
+      "labels": [
+        {
+          "id": 1,
+          "factor": "Mismatch between the IPC Template Type definition (expecting 21 inputs) and the sensor code that supplied only 20 input values; the interface contract between definition and sensor code was not enforced.",
+          "label": "match",
+          "reason": "Describes the 21-field definition versus 20 supplied inputs and the lack of enforcement of that contract, matching K1.",
+          "key_ids": [
+            1
+          ],
+          "key_texts": [
+            "The IPC Template Type was defined with 21 input fields but the sensor code supplied only 20, and the count was not validated when the sensor was compiled"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 2,
+          "factor": "The Content Interpreter accessed the 21st input without verifying the index was within the supplied array; the existing NULL pointer check did not guard against an invalid non-NULL out-of-range pointer, producing an out-of-bounds read in kernel mode.",
+          "label": "match",
+          "reason": "Describes the Content Interpreter reading the 21st input without a bounds check, causing the out-of-bounds read and crash, matching K2.",
+          "key_ids": [
+            2
+          ],
+          "key_texts": [
+            "The Content Interpreter had no runtime bounds check on the input array, so reading the 21st input caused an out-of-bounds memory read and a crash"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 3,
+          "factor": "Content Validator checked new Template Instances against the declared 21-input definition rather than the 20 values the sensor actually supplies, so it could not detect the mismatch.",
+          "label": "match",
+          "reason": "Content Validator checked against the 21-input definition rather than the 20 actually supplied, matching K4.",
+          "key_ids": [
+            4
+          ],
+          "key_texts": [
+            "The Content Validator checked new content against the 21-input definition rather than the 20 inputs actually provided, so it passed the problematic Template Instance"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 4,
+          "factor": "Testing was limited in scope: static test cases used only wildcard matching in the 21st field, so the code path reading the 21st input with a non-wildcard criterion was never exercised before release.",
+          "label": "match",
+          "reason": "Tests used only wildcard matching in the 21st field so the path was never exercised, matching K3.",
+          "key_ids": [
+            3
+          ],
+          "key_texts": [
+            "Testing used only wildcard matching criteria for the 21st field, so the mismatch was never exercised before release"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 5,
+          "factor": "The latent defect remained dormant because no prior IPC Template Instances used the 21st input field, so earlier successful deployments provided false assurance.",
+          "label": "valid_extra",
+          "reason": "The report supports that no prior instances used the 21st input, so the defect stayed dormant through earlier successful deployments, which is not in the key."
+        },
+        {
+          "id": 6,
+          "factor": "The sensor's kernel-mode driver (csagent.sys) loads early in boot, so a fault in it causes a system crash rather than a contained user-mode failure, amplifying the impact.",
+          "label": "valid_extra",
+          "reason": "The report states the driver loads early in boot as a kernel driver, which plausibly explains why the fault crashed the whole system, although it is not a key factor."
+        }
+      ],
+      "counts": {
+        "match": 4,
+        "valid_extra": 2,
+        "duplicate": 0,
+        "wrong": 0
+      },
+      "total_factors": 6,
+      "recall": 0.8,
+      "precision": 1.0,
+      "missed_key_factors": [
+        "New Template Instances were released without being tested in the Content Interpreter on a sensor; only the original Template Type was stress tested"
+      ]
+    },
+    {
+      "run": 3,
+      "labels": [
+        {
+          "id": 1,
+          "factor": "Mismatch between the IPC Template Type definition (21 expected inputs) and the sensor code that supplied only 20 input values. The defect stayed latent because no earlier channel file version used the 21st input, and no check compared the declared and supplied input counts.",
+          "label": "match",
+          "reason": "Describes the 21-vs-20 input count mismatch between the Template Type definition and sensor code with no validation of the counts, matching K1.",
+          "key_ids": [
+            1
+          ],
+          "key_texts": [
+            "The IPC Template Type was defined with 21 input fields but the sensor code supplied only 20, and the count was not validated when the sensor was compiled"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 2,
+          "factor": "Testing did not exercise the code path that failed: the automated test set used a static channel file with wildcard matching in the 21st field, so the non-wildcard comparison against the 21st input was never tested.",
+          "label": "match",
+          "reason": "Covers testing that used only wildcard matching in the 21st field so the failing path was never exercised, and that only the Template Type was stress tested with a test instance, matching K3 and partly K5.",
+          "key_ids": [
+            3,
+            5
+          ],
+          "key_texts": [
+            "Testing used only wildcard matching criteria for the 21st field, so the mismatch was never exercised before release",
+            "New Template Instances were released without being tested in the Content Interpreter on a sensor; only the original Template Type was stress tested"
+          ],
+          "key_excluded": [
+            false,
+            false
+          ]
+        },
+        {
+          "id": 3,
+          "factor": "The Content Validator checked channel files against the 21-input definition rather than against the inputs the sensor actually supplies, so it passed content that would crash the sensor.",
+          "label": "match",
+          "reason": "The Content Validator checked against the 21-input definition rather than the 20 inputs actually supplied, matching K4.",
+          "key_ids": [
+            4
+          ],
+          "key_texts": [
+            "The Content Validator checked new content against the 21-input definition rather than the 20 inputs actually provided, so it passed the problematic Template Instance"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 4,
+          "factor": "Memory-safety weakness in the kernel driver: the code read the input at index 0x14 without a bounds check, so a malformed count produced an invalid memory read in kernel space rather than a graceful rejection.",
+          "label": "match",
+          "reason": "The Content Interpreter read index 0x14 without a bounds check, causing an out-of-bounds read, matching K2.",
+          "key_ids": [
+            2
+          ],
+          "key_texts": [
+            "The Content Interpreter had no runtime bounds check on the input array, so reading the 21st input caused an out-of-bounds memory read and a crash"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 5,
+          "factor": "Kernel-mode placement of a driver that evaluates externally delivered content amplified the impact, since a fault crashes the whole system and boot-time loading can prevent recovery without manual intervention.",
+          "label": "valid_extra",
+          "reason": "The report describes the kernel driver loaded early in boot, which plausibly amplified crash impact, though it is not an answer-key cause and the report does not explicitly frame it as contributing."
+        }
+      ],
+      "counts": {
+        "match": 4,
+        "valid_extra": 1,
+        "duplicate": 0,
+        "wrong": 0
+      },
+      "total_factors": 5,
+      "recall": 1.0,
+      "precision": 1.0,
+      "missed_key_factors": []
+    },
+    {
+      "run": 4,
+      "labels": [
+        {
+          "id": 1,
+          "factor": "The IPC Template Type definition declared 21 inputs while the sensor code supplied only 20 values to the Content Interpreter, and no mechanism existed to detect or reconcile this interface mismatch before release. This mismatch also meant the Content Validator was assessing content against the declared 21-input expectation rather than the 20 values actually supplied, so it passed content that would crash sensors.",
+          "label": "match",
+          "reason": "Covers the 21-vs-20 input mismatch going undetected (K1) and the Content Validator assessing against 21 inputs rather than the 20 supplied (K4).",
+          "key_ids": [
+            1,
+            4
+          ],
+          "key_texts": [
+            "The IPC Template Type was defined with 21 input fields but the sensor code supplied only 20, and the count was not validated when the sensor was compiled",
+            "The Content Validator checked new content against the 21-input definition rather than the 20 inputs actually provided, so it passed the problematic Template Instance"
+          ],
+          "key_excluded": [
+            false,
+            false
+          ]
+        },
+        {
+          "id": 2,
+          "factor": "Automated testing used a static set of 12 test cases in which all Template Instances used a wildcard in the 21st field, so the code path reading the 21st input was never exercised and the out-of-bounds read went undetected. Testing focused on functional validation rather than input-boundary handling, and stress testing with a test Template Instance did not exercise the faulty path either.",
+          "label": "match",
+          "reason": "Describes testing that used only wildcards in the 21st field so the faulty path was never exercised, matching K3.",
+          "key_ids": [
+            3
+          ],
+          "key_texts": [
+            "Testing used only wildcard matching criteria for the 21st field, so the mismatch was never exercised before release"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 3,
+          "factor": "Latent defect was activated by a later content deployment: earlier IPC Template Instances used wildcard matching and never touched the 21st input, so the risk stayed hidden until a non-wildcard instance was introduced on July 19.",
+          "label": "valid_extra",
+          "reason": "The report supports that the latent defect stayed hidden because earlier instances never used the 21st input and was activated by the July 19 non-wildcard instance, a cause not captured separately in the key."
+        },
+        {
+          "id": 4,
+          "factor": "The Content Interpreter processing Rapid Response Content runs in the csagent.sys kernel driver, loaded early in boot, so an invalid memory read caused by content resulted in a system bugcheck rather than being contained.",
+          "label": "valid_extra",
+          "reason": "The report states the Content Interpreter runs in the early-boot kernel driver csagent.sys, which turned an invalid read into a system bugcheck, an amplifier not listed in the key."
+        },
+        {
+          "id": 5,
+          "factor": "The sensor code lacked bounds validation when reading the input pointer array: it checked for a NULL pointer but did not verify that the index was within the 20-element array, so the read at index 0x14 went through an invalid pointer.",
+          "label": "match",
+          "reason": "Describes the missing bounds check on the input pointer array leading to the out-of-bounds read at index 0x14, matching K2.",
+          "key_ids": [
+            2
+          ],
+          "key_texts": [
+            "The Content Interpreter had no runtime bounds check on the input array, so reading the 21st input caused an out-of-bounds memory read and a crash"
+          ],
+          "key_excluded": [
+            false
+          ]
+        }
+      ],
+      "counts": {
+        "match": 3,
+        "valid_extra": 2,
+        "duplicate": 0,
+        "wrong": 0
+      },
+      "total_factors": 5,
+      "recall": 0.8,
+      "precision": 1.0,
+      "missed_key_factors": [
+        "New Template Instances were released without being tested in the Content Interpreter on a sensor; only the original Template Type was stress tested"
+      ]
+    },
+    {
+      "run": 5,
+      "labels": [
+        {
+          "id": 1,
+          "factor": "The IPC Template Type definition declared 21 expected inputs, but the sensor code supplied only 20 input values to the Content Interpreter; this inconsistency between definition and implementation was not reconciled or detected before release.",
+          "label": "match",
+          "reason": "Describes the 21-field definition versus 20 supplied inputs mismatch that went undetected, matching K1.",
+          "key_ids": [
+            1
+          ],
+          "key_texts": [
+            "The IPC Template Type was defined with 21 input fields but the sensor code supplied only 20, and the count was not validated when the sensor was compiled"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 2,
+          "factor": "Testing was focused on functional validation and did not exercise the 21st input field with realistic or non-wildcard criteria, so the mismatch went undetected.",
+          "label": "match",
+          "reason": "Covers testing that used only wildcard criteria for the 21st field and relied on the original Template Type stress test, matching K3 and K5.",
+          "key_ids": [
+            3,
+            5
+          ],
+          "key_texts": [
+            "Testing used only wildcard matching criteria for the 21st field, so the mismatch was never exercised before release",
+            "New Template Instances were released without being tested in the Content Interpreter on a sensor; only the original Template Type was stress tested"
+          ],
+          "key_excluded": [
+            false,
+            false
+          ]
+        },
+        {
+          "id": 3,
+          "factor": "The Content Validator checked channel files against the expected 21-input definition rather than against what the sensor code actually supplies, so it passed content that would crash sensors.",
+          "label": "match",
+          "reason": "Content Validator checked against the 21-input definition rather than the 20 actually supplied, matching K4.",
+          "key_ids": [
+            4
+          ],
+          "key_texts": [
+            "The Content Validator checked new content against the 21-input definition rather than the 20 inputs actually provided, so it passed the problematic Template Instance"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 4,
+          "factor": "The sensor's Content Interpreter code did not bounds-check input array access: it performed a NULL pointer check, then read through an invalid pointer at index 0x14 (the 21st element of a 20-element array), and because the code ran in a kernel driver, the fault produced a system-wide bugcheck.",
+          "label": "match",
+          "reason": "Content Interpreter lacked bounds checking, causing an out-of-bounds read at the 21st element and crash, matching K2.",
+          "key_ids": [
+            2
+          ],
+          "key_texts": [
+            "The Content Interpreter had no runtime bounds check on the input array, so reading the 21st input caused an out-of-bounds memory read and a crash"
+          ],
+          "key_excluded": [
+            false
+          ]
+        }
+      ],
+      "counts": {
+        "match": 4,
+        "valid_extra": 0,
+        "duplicate": 0,
+        "wrong": 0
+      },
+      "total_factors": 4,
+      "recall": 1.0,
+      "precision": 1.0,
+      "missed_key_factors": []
+    }
+  ],
+  "summary": {
+    "successful_runs": 5,
+    "recall": {
+      "mean": 0.9199999999999999,
+      "min": 0.8,
+      "max": 1.0
+    },
+    "precision": {
+      "mean": 1.0,
+      "min": 1.0,
+      "max": 1.0
+    }
+  }
+}

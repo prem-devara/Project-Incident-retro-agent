@@ -1,0 +1,32 @@
+{
+  "events": [
+    {
+      "time": "February 2024",
+      "description": "With the release of sensor version 7.11, CrowdStrike introduced a new IPC Template Type, delivered as Rapid Response Content via Channel File 291; the Template Type Definitions file expected 21 inputs but the sensor code supplied only 20."
+    },
+    {
+      "time": "February 2024 (testing during sensor 7.11 release)",
+      "description": "IPC Template Type was tested with automated tests that used a wildcard matching criterion in the 21st field, and stress testing passed; testing did not trigger a fault, so the mismatch went undetected."
+    },
+    {
+      "time": "Before July 19, 2024",
+      "description": "A Template Instance for the IPC Template Type was released to production as part of a Rapid Response Content update; initial deployments succeeded because they used wildcard matching for the 21st input."
+    },
+    {
+      "time": "July 19, 2024",
+      "description": "Two additional IPC Template Instances were deployed, one introducing a non-wildcard matching criterion for the 21st input, producing a new version of Channel File 291."
+    },
+    {
+      "time": "July 19, 2024 (same deployment)",
+      "description": "The Content Validator evaluated the new Template Instances based on the expectation of 21 inputs, passed them, and they were sent to sensors."
+    },
+    {
+      "time": "July 19, 2024 (at the next IPC notification after receiving the update)",
+      "description": "Windows sensors receiving the new Channel File 291 evaluated the Template Instances, attempted to read the 21st input value that the Content Interpreter had not been given, caused an out-of-bounds memory read, and the systems crashed with a PAGE_FAULT_IN_NONPAGED_AREA bugcheck in csagent.sys."
+    },
+    {
+      "time": "July 29, 2024, 5 p.m. PT",
+      "description": "Recovery status: using a week-over-week comparison, approximately 99% of Windows sensors were back online compared to before the content update (typical variance ~1%)."
+    }
+  ]
+}

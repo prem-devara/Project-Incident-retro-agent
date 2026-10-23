@@ -1,0 +1,59 @@
+{
+  "impact_summary": "On July 19, 2024, a Rapid Response Content update (Channel File 291) caused Windows systems running the Falcon sensor to crash with a PAGE_FAULT_IN_NONPAGED_AREA bugcheck in csagent.sys, as the sensor performed an out-of-bounds memory read on the 21st input value. Affected Windows hosts were unable to operate until recovered. As of July 29, 2024 at 5 p.m. PT, approximately 99% of Windows sensors had returned online, indicating that recovery took about ten days for the bulk of the fleet.",
+  "action_items": [
+    {
+      "action": "Make the Content Validator check each channel file against the input count the sensor code actually supplies at runtime, and reject content that references inputs beyond that count, rather than validating only against the Template Type Definitions file.",
+      "owner_role": "Detection content platform team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Add bounds checking in csagent.sys before reading any input index in the Content Interpreter, so that out-of-range or missing inputs produce a graceful rejection or non-match instead of an invalid kernel memory read.",
+      "owner_role": "Sensor kernel driver team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Reconcile the IPC Template Type definition with the sensor's input-supply code so that the declared input count and the supplied input count are generated from a single source of truth and cross-checked in CI.",
+      "owner_role": "Sensor engineering team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Extend test coverage for Template Types to include boundary and fuzz testing of input counts and of every matching-criterion variant (wildcard and non-wildcard), with the test corpus required to exercise every input field the Template Type declares.",
+      "owner_role": "Sensor QA and test engineering team",
+      "type": "detect",
+      "priority": "high"
+    },
+    {
+      "action": "Apply staged rollout, canary cohorts, and automatic halt criteria to Rapid Response Content channel file deployments, so that a faulty channel file reaches a small population first and is stopped automatically on elevated crash or error rates.",
+      "owner_role": "Content delivery and release engineering team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Add a sensor-side safe mode that detects repeated crashes correlated with a recently received channel file and automatically quarantines or rolls back that channel file on next boot without requiring manual intervention.",
+      "owner_role": "Sensor kernel driver team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Evaluate moving Rapid Response Content evaluation out of kernel mode, or isolating its interpreter in a user-mode component, so that faults in externally delivered content cannot crash the whole system.",
+      "owner_role": "Sensor architecture team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Establish and rehearse a fleet recovery runbook for boot-time crash loops, including automated remediation tooling and customer-facing guidance, to reduce time to recovery for large numbers of hosts.",
+      "owner_role": "Incident response and customer support operations team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Add monitoring that compares post-update crash and bugcheck rates per channel file version against baseline and alerts the on-call team within minutes of an anomaly.",
+      "owner_role": "Observability and on-call engineering team",
+      "type": "detect",
+      "priority": "medium"
+    }
+  ]
+}

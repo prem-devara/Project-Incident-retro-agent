@@ -1,0 +1,36 @@
+{
+  "factors": [
+    {
+      "factor": "Mismatch between the IPC Template Type definition (expecting 21 inputs) and the sensor code that supplied only 20 input values; the interface contract between definition and sensor code was not enforced.",
+      "evidence": "\"The definition of the IPC Template Type in the Template Type Definitions file stated that it expected 21 input fields. The sensor code that invoked the Content Interpreter with Channel File 291's Template Instances supplied only 20 input values to match against.\""
+    },
+    {
+      "factor": "Content Interpreter read the 21st input without a bounds check; the NULL pointer check did not guard against an invalid (non-NULL) out-of-range pointer, producing an out-of-bounds memory read in kernel mode.",
+      "evidence": "\"The code read the input at index 0x14 (the 21st element), which did not point to valid memory. The code performed a NULL pointer check, then read through the invalid pointer, resulting in the out-of-bounds read and the bugcheck.\""
+    },
+    {
+      "factor": "Content Validator checked new Template Instances against the declared 21-input definition rather than the 20 values the sensor actually supplies, so it could not detect the mismatch.",
+      "evidence": "\"The Content Validator evaluated the new Template Instances. It based its assessment on the expectation that the IPC Template Type would be provided with 21 inputs.\""
+    },
+    {
+      "factor": "Testing was limited in scope: static test cases used only wildcard matching in the 21st field, so the code path reading the 21st input with a non-wildcard criterion was never exercised before release.",
+      "evidence": "\"a static set of 12 test cases was selected... it used a regex wildcard matching criterion in the 21st field for all Template Instances.\""
+    },
+    {
+      "factor": "Testing focused on functional validation rather than robustness and failure modes, and the stress test did not reveal the defect.",
+      "evidence": "\"Manual and automated testing were performed during development, focused on functional validation\""
+    },
+    {
+      "factor": "The latent defect remained dormant because no prior IPC Template Instances used the 21st input field, so earlier successful deployments provided false assurance.",
+      "evidence": "\"No IPC Template Instances in previous channel file versions had used the 21st input parameter field.\""
+    },
+    {
+      "factor": "Rapid Response Content (configuration data) was deployed to production sensors without staged rollout or canary protection, and was processed by kernel-mode code, so a content defect could crash systems at scale.",
+      "evidence": "\"Rapid Response Content is configuration data; it is not code or a kernel driver.\" and \"The new Template Instances were sent to sensors.\""
+    },
+    {
+      "factor": "The sensor's kernel-mode driver (csagent.sys) loads early in boot, so a fault in it causes a system crash rather than a contained user-mode failure, amplifying the impact.",
+      "evidence": "\"The Falcon sensor uses a kernel driver (csagent.sys), loaded from an early phase of system boot\""
+    }
+  ]
+}

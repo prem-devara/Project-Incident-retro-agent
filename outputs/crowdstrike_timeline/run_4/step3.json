@@ -1,0 +1,71 @@
+{
+  "impact_summary": "On July 19, 2024, a Rapid Response Content update (Channel File 291) caused Windows systems running the CrowdStrike Falcon sensor to crash with a PAGE_FAULT_IN_NONPAGED_AREA bugcheck in csagent.sys at their next IPC notification. The report indicates that as of July 29, 2024 at 5 p.m. PT, approximately 99% of Windows sensors were back online compared to before the update (typical week-over-week variance is about 1%), meaning the outage affected Windows hosts across the fleet for roughly ten days. The report does not give an exact count of affected systems.",
+  "action_items": [
+    {
+      "action": "Reconcile the IPC Template Type input count between the Template Type Definitions file and the sensor code so that both declare and supply the same number of inputs, and add a build-time or CI check that fails when they diverge.",
+      "owner_role": "Sensor engineering team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Add bounds checking on all Content Interpreter input array accesses in csagent.sys so that out-of-range indices return a safe default or a logged error instead of performing an unguarded read.",
+      "owner_role": "Sensor engineering team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Extend the Content Validator to check each Template Instance against the number of inputs the sensor actually supplies at runtime, not only the declared count in the Template Type Definitions file, and block deployment on mismatch.",
+      "owner_role": "Content engineering team",
+      "type": "detect",
+      "priority": "high"
+    },
+    {
+      "action": "Apply staged rollout (canary cohorts with progressive percentage expansion and automatic halt on crash or health-signal regression) to all Rapid Response Content channel file deployments.",
+      "owner_role": "Release engineering team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Build a fuzzing and boundary-condition test suite for every Template Type that exercises every input index, including non-wildcard matching criteria and inputs beyond the currently used set, and run it in the release pipeline before any content ships.",
+      "owner_role": "Quality assurance team",
+      "type": "detect",
+      "priority": "high"
+    },
+    {
+      "action": "Require that test coverage for each Template Type include Template Instances that exercise all declared input fields, and reject test plans that rely on a static set of wildcard-only cases.",
+      "owner_role": "Quality assurance team",
+      "type": "detect",
+      "priority": "medium"
+    },
+    {
+      "action": "Add crash-telemetry monitoring that correlates sensor boot-time or early-driver crashes with recent channel file versions and triggers an automatic content rollback or kill-switch recommendation.",
+      "owner_role": "Platform reliability team",
+      "type": "detect",
+      "priority": "medium"
+    },
+    {
+      "action": "Build and document a remote mechanism to revert or disable a specific channel file version across the fleet without requiring manual intervention on each host, and rehearse it in a game day exercise.",
+      "owner_role": "Platform reliability team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Create a runbook for recovering Windows hosts stuck in a boot crash loop caused by a faulty channel file, including safe-mode and recovery-environment steps, and make it available to customer support and on-call engineers.",
+      "owner_role": "On-call engineer",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Evaluate whether Rapid Response Content parsing can be moved to user-mode or isolated from the kernel driver's boot-time code path, or otherwise contained so a content defect cannot crash the system at boot-level privilege.",
+      "owner_role": "Sensor architecture team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Establish a review of the Rapid Response Content deployment path against sensor code certification requirements, documenting which safeguards apply to configuration data and identifying gaps relative to WHQL-style certification.",
+      "owner_role": "Release engineering team",
+      "type": "prevent",
+      "priority": "low"
+    }
+  ]
+}

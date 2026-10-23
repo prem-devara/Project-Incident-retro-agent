@@ -1,0 +1,53 @@
+{
+  "impact_summary": "On July 19, 2024, a Rapid Response Content update (Channel File 291) caused Windows systems running the Falcon sensor to crash with a PAGE_FAULT_IN_NONPAGED_AREA bugcheck in csagent.sys at the next IPC notification after receipt. The update was deployed fleet-wide in a single rollout. As of July 29, 2024 at 5 p.m. PT, approximately 99% of Windows sensors were online compared to before the update (typical variance about 1%), indicating a recovery period of roughly ten days for the affected fleet.",
+  "action_items": [
+    {
+      "action": "Reconcile the IPC Template Type definition (21 expected inputs) with the sensor code that supplies inputs (20 values), and add a build-time or CI check that fails when the number of inputs declared in the Template Type Definitions file does not match the number supplied by the sensor code.",
+      "owner_role": "Sensor engineering team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Modify the Content Validator to validate channel files against the input arity the sensor actually supplies at runtime, rather than only the declared definition, and reject Template Instances that reference input indices beyond that arity.",
+      "owner_role": "Content validation / Detection engineering team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Harden the Content Interpreter so that every input index access is bounds-checked against the actual array length, and treat missing or out-of-range inputs as a safe no-match rather than dereferencing them; correct the NULL-check-then-read pattern so that an invalid pointer is never dereferenced.",
+      "owner_role": "Sensor engineering team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Deliver Rapid Response Content through staged rollout with canary rings, automated crash and health telemetry gating between rings, and automatic halt or rollback when crash rates exceed a defined threshold.",
+      "owner_role": "Release engineering team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Extend the test corpus for Template Types to exercise every declared input field with realistic and non-wildcard criteria, and add fuzz and stress tests that generate Template Instances across the full range of input arities and matching criteria, including ones using previously unused fields.",
+      "owner_role": "Quality engineering team",
+      "type": "detect",
+      "priority": "medium"
+    },
+    {
+      "action": "Apply the same kernel-level safety review, fault-injection testing, and rollout controls to Rapid Response Content that is applied to sensor code, rather than treating configuration data as lower risk.",
+      "owner_role": "Product security and sensor engineering leadership",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Establish a runbook and automated recovery mechanism for sensors that crash on boot due to a bad channel file, including a safe-mode or quarantine path that disables the offending channel file without requiring manual per-host remediation.",
+      "owner_role": "On-call engineer and Incident response team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Add fleet-level crash-rate and sensor-online monitoring with alerts that fire within minutes of a content update, so that a regression of this kind is detected before it reaches the full fleet.",
+      "owner_role": "Observability / SRE team",
+      "type": "detect",
+      "priority": "medium"
+    }
+  ]
+}

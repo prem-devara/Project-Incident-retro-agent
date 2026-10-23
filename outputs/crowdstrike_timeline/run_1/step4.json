@@ -1,0 +1,128 @@
+{
+  "factor_verdicts": [
+    {
+      "id": 1,
+      "verdict": "keep",
+      "reason": "Directly stated in the report as the root mismatch (21 expected inputs vs 20 supplied) that caused the out-of-bounds read."
+    },
+    {
+      "id": 2,
+      "verdict": "keep",
+      "reason": "Report states the Content Validator assessed the new instances assuming 21 inputs, so the mismatch passed validation and the content was sent to sensors."
+    },
+    {
+      "id": 3,
+      "verdict": "keep",
+      "reason": "Report shows the 12 static test cases used a wildcard in the 21st field, so the non-wildcard 21st-input path was never exercised."
+    },
+    {
+      "id": 4,
+      "verdict": "merge with #3",
+      "reason": "Overlaps with #3 (testing never exercised the non-wildcard 21st-input path); the production-content-path claim is partly inferred, so fold the stress-test and certification gap into #3.",
+      "new_wording": null
+    },
+    {
+      "id": 5,
+      "verdict": "remove",
+      "reason": "The report does not state how the update was rolled out; the 'all sensors at once' claim is inferred, and 'configuration data' does not show a lack of rigor or staged rollout."
+    },
+    {
+      "id": 6,
+      "verdict": "keep",
+      "reason": "Crash dump evidence shows a NULL check but no bounds check before reading index 0x14, which turned a content error into a bugcheck."
+    },
+    {
+      "id": 7,
+      "verdict": "remove",
+      "reason": "The report does not support the claim that recovery was difficult or impact amplified; the evidence is about early boot loading and ~99% recovery within ten days."
+    }
+  ],
+  "factors": [
+    {
+      "factor": "Mismatch between the IPC Template Type definition (21 expected inputs) and the sensor code that supplied only 20 input values, so the Content Interpreter had no data for the 21st field.",
+      "evidence": "\"The definition of the IPC Template Type in the Template Type Definitions file stated that it expected 21 input fields. The sensor code that invoked the Content Interpreter with Channel File 291's Template Instances supplied only 20 input values to match against.\""
+    },
+    {
+      "factor": "Content Validator checked channel files against the expected 21-input definition rather than verifying that the sensor could actually supply the inputs, so the mismatch was not caught before deployment.",
+      "evidence": "\"The Content Validator evaluated the new Template Instances. It based its assessment on the expectation that the IPC Template Type would be provided with 21 inputs.\""
+    },
+    {
+      "factor": "Testing was focused on functional validation and used a static set of test cases with a wildcard matching criterion in the 21st field, so the code path that reads the 21st input with a non-wildcard criterion was never exercised.",
+      "evidence": "\"For automated testing, a static set of 12 test cases was selected... it used a regex wildcard matching criterion in the 21st field for all Template Instances.\" and \"Manual and automated testing were performed during development, focused on functional validation\" | \"The IPC Template Type was stress tested with a test Template Instance in a test environment... It passed the stress test and was validated for use.\" and \"during that testing, sensors use the latest channel files available at the time of certification.\""
+    },
+    {
+      "factor": "The sensor's kernel-mode parser lacked a bounds check on the input array before reading the 21st element; a NULL check was performed but did not guard against the out-of-range index, turning a content error into a system crash.",
+      "evidence": "\"The context data had been prepared as an array of 20 input pointers. The code read the input at index 0x14 (the 21st element), which did not point to valid memory. The code performed a NULL pointer check, then read through the invalid pointer, resulting in the out-of-bounds read and the bugcheck.\""
+    }
+  ],
+  "action_items": [
+    {
+      "action": "Add a schema validation check in the Content Validator that compares the number of inputs the sensor code actually supplies against the Template Type definition, and block channel file publication when the two disagree.",
+      "owner_role": "Content Validation team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Add a bounds check in the sensor's kernel-mode input parser so that any index beyond the supplied input array is rejected safely, and treat out-of-range reads as a content evaluation error rather than dereferencing invalid memory.",
+      "owner_role": "Sensor engineering team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Extend the test suite for Template Types to generate test cases covering every input field with both wildcard and non-wildcard matching criteria, and run them against the production content path before release.",
+      "owner_role": "Detection content QA team",
+      "type": "detect",
+      "priority": "high"
+    },
+    {
+      "action": "Add pre-deployment fuzzing and property-based testing of the Content Interpreter using randomized Template Instances and mismatched input counts, run in CI for every channel file change.",
+      "owner_role": "Sensor engineering team",
+      "type": "detect",
+      "priority": "medium"
+    },
+    {
+      "action": "Update WHQL certification and stress-test procedures so sensors are tested against the latest production channel files, including Template Instances with non-wildcard criteria in every input field, and record the channel file versions used in the certification record.",
+      "owner_role": "Sensor release certification team",
+      "type": "detect",
+      "priority": "medium"
+    }
+  ],
+  "changes": [
+    {
+      "change": "Merged #4 into #3: Stress testing and sensor certification did not use the production content path that delivers the non-wildcard 21st-input Template Instances, so the fault was not reproduced before release.",
+      "reason": "Overlaps with #3 (testing never exercised the non-wildcard 21st-input path); the production-content-path claim is partly inferred, so fold the stress-test and certification gap into #3."
+    },
+    {
+      "change": "Removed #5: Rapid Response Content is configuration data deployed without the same rigor as kernel code, and the content was pushed to all sensors at once, so a faulty update reached the full fleet without staged or limited rollout.",
+      "reason": "The report does not state how the update was rolled out; the 'all sensors at once' claim is inferred, and 'configuration data' does not show a lack of rigor or staged rollout."
+    },
+    {
+      "change": "Removed #7: Because csagent.sys loads early in boot and runs in kernel mode, a fault in content processing crashed affected systems and made recovery difficult, amplifying the impact.",
+      "reason": "The report does not support the claim that recovery was difficult or impact amplified; the evidence is about early boot loading and ~99% recovery within ten days."
+    },
+    {
+      "change": "Removed the staged-rollout action item (canary rings with automatic halt).",
+      "reason": "It only addressed factor #5, which was removed as unsupported by the report."
+    },
+    {
+      "change": "Removed the kill switch / safe-mode fallback action item.",
+      "reason": "It only addressed the amplified-recovery-impact claim in factor #7, which was removed as unsupported."
+    },
+    {
+      "change": "Removed the fleet-wide health monitor action item.",
+      "reason": "It was tied to the rollout and impact-scope claims (#5/#7) that were removed as unsupported by the report."
+    },
+    {
+      "change": "Removed the early-boot crash recovery runbook action item.",
+      "reason": "It only addressed factor #7 (recovery difficulty), which was removed as unsupported."
+    },
+    {
+      "change": "Removed the vague review of the Content Validator and deployment process with a sign-off process.",
+      "reason": "It was vague, not verifiable as done, owned by leadership, and redundant with the specific schema validation action item for #2."
+    },
+    {
+      "change": "Added an action item to update WHQL certification and stress-test procedures to use latest production channel files with non-wildcard criteria.",
+      "reason": "Covers the stress-test and certification gap from the merged factor #4, which previously had no specific action."
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "impact_summary": "On July 19, 2024, a Rapid Response Content update (Channel File 291) caused Windows systems running the CrowdStrike Falcon sensor to crash with a PAGE_FAULT_IN_NONPAGED_AREA bugcheck in csagent.sys. As of July 29, 2024 at 5 p.m. PT, approximately 99% of Windows sensors were back online compared to before the content update (typical week-over-week variance is about 1%), indicating that roughly 1% of sensors remained offline beyond normal variance at that time. The report does not state the total number of affected systems or the full duration of outage for each system.",
+  "action_items": [
+    {
+      "action": "Enforce the interface contract between Template Type definitions and sensor code by generating the input-count contract from a single source of truth and failing the build when the definition's expected input count differs from the number of values the sensor supplies.",
+      "owner_role": "Sensor engineering team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Add explicit bounds checks to the Content Interpreter so that every input index is validated against the actual number of supplied values before access, and treat out-of-range indices as a handled evaluation error rather than dereferencing memory.",
+      "owner_role": "Sensor engineering team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Change the Content Validator to validate Template Instances against the number of inputs the sensor actually supplies at runtime, and reject channel files whose instances reference input positions that are not provided.",
+      "owner_role": "Content validation team",
+      "type": "detect",
+      "priority": "high"
+    },
+    {
+      "action": "Expand test coverage for Template Types to include every input position with both wildcard and non-wildcard matching criteria, and include fuzzing and malformed-input robustness tests in addition to functional validation.",
+      "owner_role": "Quality engineering team",
+      "type": "detect",
+      "priority": "high"
+    },
+    {
+      "action": "Introduce staged (canary) rollout for Rapid Response Content with automated health monitoring and automatic halt of deployment when crash or boot-failure rates increase in early rings.",
+      "owner_role": "Release engineering team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Make the kernel-mode processing of Rapid Response Content fail safely, by isolating content evaluation so that a faulty channel file disables only the affected content rather than crashing the system.",
+      "owner_role": "Sensor engineering team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Provide customers and operators with a documented, tested recovery procedure and a remote or fleet-level mechanism to revert a bad channel file, so that affected systems can be restored quickly at scale.",
+      "owner_role": "Customer support and platform operations team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Review whether processing configuration data in kernel-mode code is necessary, and where possible move content interpretation to a less privileged or user-mode component to limit crash impact.",
+      "owner_role": "Architecture review board",
+      "type": "prevent",
+      "priority": "low"
+    }
+  ]
+}

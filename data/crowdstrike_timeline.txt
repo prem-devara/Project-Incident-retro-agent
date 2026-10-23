@@ -1,0 +1,42 @@
+CrowdStrike Falcon sensor Windows system crashes, Channel File 291, July 19, 2024
+
+System background
+CrowdStrike delivers security content configuration updates to its Falcon sensors in two ways: Sensor Content, shipped with the sensor itself, and Rapid Response Content, designed to respond to the changing threat landscape at operational speed. Rapid Response Content is configuration data; it is not code or a kernel driver.
+
+Components involved in processing regex-based Rapid Response Content on the sensor:
+- Content Interpreter: part of the sensor C++ code, which tests input strings against regexes.
+- Template Types: predefined fields for threat detection engineers to use in Rapid Response Content. Template Types are expressed in code and compiled into the sensor at build time.
+- Template Type Definitions file: defines the parameters of each Template Type, including which Channel File delivers its content, how many inputs the Template Type is meant to use, and what data is required for each input.
+- Template Instances: matching criteria (regex content) developed by detection engineers for use with a specific Template Type.
+- Rapid Response Content: multiple Template Instances bundled together and delivered by channel file.
+- Content Validator: checks the validity of channel files against their definition in the Template Type Definitions file.
+- Content Configuration System: used to create Template Instances, which are validated and deployed to sensors through Channel Files.
+
+The Falcon sensor uses a kernel driver (csagent.sys), loaded from an early phase of system boot so the sensor can observe and defend against malware that launches before user mode processes start. CrowdStrike certifies each new Windows sensor release through Microsoft's Windows Hardware Quality Labs (WHQL) program; during that testing, sensors use the latest channel files available at the time of certification.
+
+February 2024
+With the release of sensor version 7.11, CrowdStrike introduced a new IPC Template Type, to detect novel attack techniques that abuse named pipes and other Windows interprocess communication (IPC) mechanisms. IPC Template Instances are delivered as Rapid Response Content to sensors via Channel File 291.
+
+The definition of the IPC Template Type in the Template Type Definitions file stated that it expected 21 input fields. The sensor code that invoked the Content Interpreter with Channel File 291's Template Instances supplied only 20 input values to match against.
+
+Testing of the IPC Template Type
+- Manual and automated testing were performed during development, focused on functional validation: the correct flow of security-relevant data through the Template Type and the generation of appropriate detection alerts.
+- For automated testing, a static set of 12 test cases was selected. A channel file was defined manually for use within these test cases, and it used a regex wildcard matching criterion in the 21st field for all Template Instances.
+- The IPC Template Type was stress tested with a test Template Instance in a test environment consisting of a variety of operating systems and workloads. It passed the stress test and was validated for use.
+- The IPC Template Type was tested during the sensor 7.11 release and did not trigger a fault.
+
+After the sensor 7.11 release (before July 19, 2024)
+A Template Instance for the IPC Template Type was released to production as part of a Rapid Response Content update. The first several deployments of IPC Template Instances in the field were successful. These initial IPC Template Instances used wildcard matching criteria for the 21st input.
+
+July 19, 2024
+Two additional IPC Template Instances were deployed. One of these introduced a non-wildcard matching criterion for the 21st input parameter. These new Template Instances resulted in a new version of Channel File 291 that required the sensor to inspect the 21st input parameter. No IPC Template Instances in previous channel file versions had used the 21st input parameter field.
+
+The Content Validator evaluated the new Template Instances. It based its assessment on the expectation that the IPC Template Type would be provided with 21 inputs. The new Template Instances were sent to sensors.
+
+Windows sensors that received the new version of Channel File 291 evaluated the new IPC Template Instances at the next IPC notification from the operating system. The Template Instances specified a comparison against the 21st input value. The Content Interpreter had been given only 20 values. The attempt to access the 21st value produced an out-of-bounds memory read beyond the end of the input data array, and the system crashed.
+
+Crash dump
+A kernel crash dump from an affected system shows a PAGE_FAULT_IN_NONPAGED_AREA bugcheck (an invalid memory reference) in csagent.sys, CrowdStrike's file system filter driver. When the driver receives a named pipe notification, the data is combined with other context and presented for evaluation against the Template Instances in Channel File 291. The context data had been prepared as an array of 20 input pointers. The code read the input at index 0x14 (the 21st element), which did not point to valid memory. The code performed a NULL pointer check, then read through the invalid pointer, resulting in the out-of-bounds read and the bugcheck.
+
+Recovery
+As of July 29 at 5 p.m. PT, using a week-over-week comparison, ~99% of Windows sensors were online compared to before the content update (typical week-over-week variance is ~1%).

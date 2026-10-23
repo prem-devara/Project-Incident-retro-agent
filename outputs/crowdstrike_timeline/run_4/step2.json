@@ -1,0 +1,44 @@
+{
+  "factors": [
+    {
+      "factor": "Mismatch between the Template Type Definitions file (expecting 21 inputs) and the sensor code supplying only 20 input values, a schema/interface contract defect that was never reconciled.",
+      "evidence": "\"The definition of the IPC Template Type in the Template Type Definitions file stated that it expected 21 input fields. The sensor code that invoked the Content Interpreter with Channel File 291's Template Instances supplied only 20 input values to match against.\""
+    },
+    {
+      "factor": "Automated testing used a static set of 12 test cases in which all Template Instances used a wildcard matching criterion in the 21st field, so the code path reading the 21st input was never exercised.",
+      "evidence": "\"For automated testing, a static set of 12 test cases was selected... it used a regex wildcard matching criterion in the 21st field for all Template Instances.\""
+    },
+    {
+      "factor": "Testing was focused on functional validation rather than robustness and input-boundary handling, so the out-of-bounds read was not detected.",
+      "evidence": "\"Manual and automated testing were performed during development, focused on functional validation: the correct flow of security-relevant data through the Template Type and the generation of appropriate detection alerts.\""
+    },
+    {
+      "factor": "Stress testing used a test Template Instance and environment that did not reveal the fault, giving false confidence that the Template Type was safe.",
+      "evidence": "\"The IPC Template Type was stress tested with a test Template Instance in a test environment consisting of a variety of operating systems and workloads. It passed the stress test and was validated for use.\""
+    },
+    {
+      "factor": "The Content Validator checked new Template Instances against the declared 21-input expectation rather than the 20 values the sensor actually supplies, so it passed content that would crash sensors.",
+      "evidence": "\"The Content Validator evaluated the new Template Instances. It based its assessment on the expectation that the IPC Template Type would be provided with 21 inputs. The new Template Instances were sent to sensors.\""
+    },
+    {
+      "factor": "Latent defect was activated by a later content deployment: earlier IPC Template Instances used wildcard matching and never touched the 21st input, so the risk stayed hidden until a non-wildcard instance was introduced on July 19.",
+      "evidence": "\"No IPC Template Instances in previous channel file versions had used the 21st input parameter field.\""
+    },
+    {
+      "factor": "Rapid Response Content is configuration data deployed to production sensors without the staged rollout, canary, or WHQL-style certification applied to sensor code, so a faulty content update reached the fleet at once.",
+      "evidence": "\"Rapid Response Content is configuration data; it is not code or a kernel driver.\""
+    },
+    {
+      "factor": "The sensor's kernel-mode driver (csagent.sys) processes this configuration content, so a content defect escalated to system-wide crashes at boot-level privilege rather than being contained in user mode.",
+      "evidence": "\"The Falcon sensor uses a kernel driver (csagent.sys), loaded from an early phase of system boot\""
+    },
+    {
+      "factor": "The sensor lacked defensive bounds checking on input array access; a NULL pointer check was performed but the read through an invalid pointer was not guarded.",
+      "evidence": "\"The code performed a NULL pointer check, then read through the invalid pointer, resulting in the out-of-bounds read and the bugcheck.\""
+    },
+    {
+      "factor": "Recovery was slow and affected a large share of the fleet, with roughly 99% of sensors back online only after about ten days, indicating limited ability to remotely revert or disable the faulty channel file.",
+      "evidence": "\"As of July 29 at 5 p.m. PT, using a week-over-week comparison, ~99% of Windows sensors were online compared to before the content update (typical week-over-week variance is ~1%).\""
+    }
+  ]
+}

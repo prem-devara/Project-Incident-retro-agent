@@ -1,0 +1,59 @@
+{
+  "impact_summary": "On July 19, 2024, a Rapid Response Content update (Channel File 291) caused Windows systems running the Falcon sensor to crash with a PAGE_FAULT_IN_NONPAGED_AREA bugcheck in csagent.sys, as the kernel-mode driver performed an out-of-bounds memory read on the 21st input field. The crash affected Windows sensors that received the update, and because the driver loads early in boot, recovery was difficult. As of July 29, 2024 at 5 p.m. PT, approximately 99% of Windows sensors were online compared to before the content update, indicating an outage lasting roughly ten days for a portion of the fleet.",
+  "action_items": [
+    {
+      "action": "Add a schema validation check in the Content Validator that compares the number of inputs the sensor code actually supplies against the Template Type definition, and block channel file publication when the two disagree.",
+      "owner_role": "Content Validation team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Add a bounds check in the sensor's kernel-mode input parser so that any index beyond the supplied input array is rejected safely, and treat out-of-range reads as a content evaluation error rather than dereferencing invalid memory.",
+      "owner_role": "Sensor engineering team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Require Rapid Response Content to be deployed through a staged rollout (canary rings with automatic halt on crash or sensor-offline signals) rather than to the full fleet at once.",
+      "owner_role": "Release engineering team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Extend the test suite for Template Types to generate test cases covering every input field with both wildcard and non-wildcard matching criteria, and run them against the production content path before release.",
+      "owner_role": "Detection content QA team",
+      "type": "detect",
+      "priority": "high"
+    },
+    {
+      "action": "Add pre-deployment fuzzing and property-based testing of the Content Interpreter using randomized Template Instances and mismatched input counts, run in CI for every channel file change.",
+      "owner_role": "Sensor engineering team",
+      "type": "detect",
+      "priority": "medium"
+    },
+    {
+      "action": "Implement a kill switch or safe-mode fallback that lets the sensor disable a faulty Rapid Response Content channel file automatically after a crash, without requiring a reboot into a repaired state.",
+      "owner_role": "Sensor engineering team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Establish a fleet-wide health monitor that correlates content deployments with sensor check-in rates and boot failures, with automated alerting on deviations beyond normal week-over-week variance.",
+      "owner_role": "Reliability engineering team",
+      "type": "detect",
+      "priority": "medium"
+    },
+    {
+      "action": "Document and publish a recovery runbook for early-boot kernel driver crashes caused by content updates, including remote and out-of-band remediation steps for affected endpoints.",
+      "owner_role": "On-call engineering team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Review the Content Validator and content deployment process to ensure content is validated against the actual sensor runtime behavior, and define a sign-off process when content changes alter the number of inputs a Template Type consumes.",
+      "owner_role": "Detection engineering leadership",
+      "type": "prevent",
+      "priority": "low"
+    }
+  ]
+}

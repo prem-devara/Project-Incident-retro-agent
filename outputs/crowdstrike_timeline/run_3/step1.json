@@ -1,0 +1,32 @@
+{
+  "events": [
+    {
+      "time": "February 2024",
+      "description": "With the release of sensor version 7.11, CrowdStrike introduced the new IPC Template Type, delivered as Rapid Response Content via Channel File 291; its definition expected 21 inputs but the sensor code supplied only 20."
+    },
+    {
+      "time": "During sensor 7.11 testing (February 2024)",
+      "description": "IPC Template Type was tested with manual/automated tests (a static set of 12 test cases using wildcard matching in the 21st field) and a stress test; it passed and did not trigger a fault."
+    },
+    {
+      "time": "Before July 19, 2024",
+      "description": "A first IPC Template Instance was released to production as Rapid Response Content; the first several field deployments were successful, all using wildcard matching for the 21st input."
+    },
+    {
+      "time": "July 19, 2024",
+      "description": "Two additional IPC Template Instances were deployed, one introducing a non-wildcard matching criterion for the 21st input, producing a new version of Channel File 291."
+    },
+    {
+      "time": "July 19, 2024 (same deployment)",
+      "description": "The Content Validator evaluated the new Template Instances based on the expectation of 21 inputs and passed them; the new channel file was sent to sensors."
+    },
+    {
+      "time": "July 19, 2024 (next IPC notification after receipt)",
+      "description": "Windows sensors receiving the new Channel File 291 evaluated the Template Instances at the next IPC notification; accessing the 21st input value caused an out-of-bounds memory read and the system crashed (PAGE_FAULT_IN_NONPAGED_AREA bugcheck in csagent.sys)."
+    },
+    {
+      "time": "July 29, 2024, 5 p.m. PT",
+      "description": "As of this time, approximately 99% of Windows sensors were back online compared to before the content update (typical week-over-week variance is ~1%)."
+    }
+  ]
+}

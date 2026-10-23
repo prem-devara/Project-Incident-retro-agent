@@ -1,0 +1,137 @@
+{
+  "factor_verdicts": [
+    {
+      "id": 1,
+      "verdict": "keep",
+      "reason": "The report directly states the definition expected 21 inputs while the sensor code supplied 20; this mismatch is the root enabling condition of the failure."
+    },
+    {
+      "id": 2,
+      "verdict": "keep",
+      "reason": "The crash dump evidence shows a NULL check followed by a read through an invalid pointer at index 0x14, which directly caused the out-of-bounds read and bugcheck.",
+      "new_wording": "The Content Interpreter accessed the 21st input without verifying the index was within the supplied array; the existing NULL pointer check did not guard against an invalid non-NULL out-of-range pointer, producing an out-of-bounds read in kernel mode."
+    },
+    {
+      "id": 3,
+      "verdict": "keep",
+      "reason": "The report states the Content Validator assessed instances assuming 21 inputs, so it could not catch that the sensor supplied only 20, letting the defective content ship."
+    },
+    {
+      "id": 4,
+      "verdict": "keep",
+      "reason": "The report states all 12 static test cases used a wildcard in the 21st field, so the non-wildcard code path was never exercised before release."
+    },
+    {
+      "id": 5,
+      "verdict": "remove",
+      "reason": "Evidence only says testing focused on functional validation; the report does not show robustness or failure-mode testing was absent or would have found the defect, and the stress test claim is not supported as a distinct cause (the real gap is covered by #4)."
+    },
+    {
+      "id": 6,
+      "verdict": "keep",
+      "reason": "The report states no earlier instances used the 21st input and the first deployments succeeded, so the defect stayed dormant and earlier successes gave false assurance."
+    },
+    {
+      "id": 7,
+      "verdict": "remove",
+      "reason": "The evidence does not support the claim: it only shows content is configuration data and was sent to sensors, and the report says nothing about the absence of staged rollout or canary protection (speculation)."
+    },
+    {
+      "id": 8,
+      "verdict": "keep",
+      "reason": "The report states csagent.sys is a kernel driver loaded early in boot and the fault produced a PAGE_FAULT_IN_NONPAGED_AREA bugcheck, which explains why the error crashed the system and amplified impact."
+    }
+  ],
+  "factors": [
+    {
+      "factor": "Mismatch between the IPC Template Type definition (expecting 21 inputs) and the sensor code that supplied only 20 input values; the interface contract between definition and sensor code was not enforced.",
+      "evidence": "\"The definition of the IPC Template Type in the Template Type Definitions file stated that it expected 21 input fields. The sensor code that invoked the Content Interpreter with Channel File 291's Template Instances supplied only 20 input values to match against.\""
+    },
+    {
+      "factor": "The Content Interpreter accessed the 21st input without verifying the index was within the supplied array; the existing NULL pointer check did not guard against an invalid non-NULL out-of-range pointer, producing an out-of-bounds read in kernel mode.",
+      "evidence": "\"The code read the input at index 0x14 (the 21st element), which did not point to valid memory. The code performed a NULL pointer check, then read through the invalid pointer, resulting in the out-of-bounds read and the bugcheck.\""
+    },
+    {
+      "factor": "Content Validator checked new Template Instances against the declared 21-input definition rather than the 20 values the sensor actually supplies, so it could not detect the mismatch.",
+      "evidence": "\"The Content Validator evaluated the new Template Instances. It based its assessment on the expectation that the IPC Template Type would be provided with 21 inputs.\""
+    },
+    {
+      "factor": "Testing was limited in scope: static test cases used only wildcard matching in the 21st field, so the code path reading the 21st input with a non-wildcard criterion was never exercised before release.",
+      "evidence": "\"a static set of 12 test cases was selected... it used a regex wildcard matching criterion in the 21st field for all Template Instances.\""
+    },
+    {
+      "factor": "The latent defect remained dormant because no prior IPC Template Instances used the 21st input field, so earlier successful deployments provided false assurance.",
+      "evidence": "\"No IPC Template Instances in previous channel file versions had used the 21st input parameter field.\""
+    },
+    {
+      "factor": "The sensor's kernel-mode driver (csagent.sys) loads early in boot, so a fault in it causes a system crash rather than a contained user-mode failure, amplifying the impact.",
+      "evidence": "\"The Falcon sensor uses a kernel driver (csagent.sys), loaded from an early phase of system boot\""
+    }
+  ],
+  "action_items": [
+    {
+      "action": "Enforce the interface contract between Template Type definitions and sensor code by generating the input-count contract from a single source of truth and failing the build when the definition's expected input count differs from the number of values the sensor supplies.",
+      "owner_role": "Sensor engineering team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Add explicit bounds checks to the Content Interpreter so that every input index is validated against the actual number of supplied values before access, and treat out-of-range indices as a handled evaluation error rather than dereferencing memory.",
+      "owner_role": "Sensor engineering team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Change the Content Validator to validate Template Instances against the number of inputs the sensor actually supplies at runtime, and reject channel files whose instances reference input positions that are not provided.",
+      "owner_role": "Content validation team",
+      "type": "detect",
+      "priority": "high"
+    },
+    {
+      "action": "Expand test coverage for Template Types to include every input position with both wildcard and non-wildcard matching criteria, and add a test that fails when any Template Instance references an input index beyond the number of values the sensor supplies.",
+      "owner_role": "Quality engineering team",
+      "type": "detect",
+      "priority": "high"
+    },
+    {
+      "action": "Make the kernel-mode processing of Rapid Response Content fail safely, by isolating content evaluation so that a faulty channel file disables only the affected content rather than crashing the system.",
+      "owner_role": "Sensor engineering team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Provide customers and operators with a documented, tested recovery procedure and a remote or fleet-level mechanism to revert a bad channel file, so that affected systems can be restored quickly at scale.",
+      "owner_role": "Customer support and platform operations team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Review whether processing configuration data in kernel-mode code is necessary, and where possible move content interpretation to a less privileged or user-mode component to limit crash impact.",
+      "owner_role": "Architecture review board",
+      "type": "prevent",
+      "priority": "low"
+    }
+  ],
+  "changes": [
+    {
+      "change": "Reworded #2: The Content Interpreter accessed the 21st input without verifying the index was within the supplied array; the existing NULL pointer check did not guard against an invalid non-NULL out-of-range pointer, producing an out-of-bounds read in kernel mode.",
+      "reason": "The crash dump evidence shows a NULL check followed by a read through an invalid pointer at index 0x14, which directly caused the out-of-bounds read and bugcheck."
+    },
+    {
+      "change": "Removed #5: Testing focused on functional validation rather than robustness and failure modes, and the stress test did not reveal the defect.",
+      "reason": "Evidence only says testing focused on functional validation; the report does not show robustness or failure-mode testing was absent or would have found the defect, and the stress test claim is not supported as a distinct cause (the real gap is covered by #4)."
+    },
+    {
+      "change": "Removed #7: Rapid Response Content (configuration data) was deployed to production sensors without staged rollout or canary protection, and was processed by kernel-mode code, so a content defect could crash systems at scale.",
+      "reason": "The evidence does not support the claim: it only shows content is configuration data and was sent to sensors, and the report says nothing about the absence of staged rollout or canary protection (speculation)."
+    },
+    {
+      "change": "Removed the action item introducing staged (canary) rollout with automated health monitoring and automatic halt.",
+      "reason": "It only addressed factor #7, which was removed because the report provides no evidence about rollout practices."
+    },
+    {
+      "change": "Rewrote the test coverage action item to drop fuzzing and malformed-input robustness testing and instead require a test that fails when an instance references an input index beyond the supplied values.",
+      "reason": "The robustness portion addressed removed factor #5; the rewritten item stays tied to factor #4 and is specific and verifiable."
+    }
+  ]
+}
