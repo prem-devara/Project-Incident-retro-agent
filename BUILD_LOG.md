@@ -65,6 +65,15 @@ Notes for the README. Raw, dated, in build order.
 - Kept the answer key unchanged rather than adjust it after seeing results.
 - Positive: Step 4 correctly merged a mitigation (Twitter/banner status updates) into the dashboard factor instead of keeping it as a cause.
 
+## AWS DynamoDB 2025 (fourth incident)
+- Longest input so far (~3x GitLab). Step 1 was cut off at max_tokens=2000.
+- 4 of 5 runs failed with a confusing JSONDecodeError ("Unterminated string"). The retry was wasted: it hit the same limit and was cut off again.
+- Fix: Step 1 limit raised to 8,000. A reply cut off at max_tokens now raises a clear "cut off at max_tokens" error and is not retried.
+- After the fix: 5/5 runs completed. Recall 0.97, precision 1.00 (mean of 5 runs).
+- Spot-checked run 1: all matches single-line and fair.
+- The one real miss: the Network Manager backlog. The agent noted that network state was slow to propagate but not why, skipping the middle link in a long failure chain.
+- Lesson: token limits sized for short inputs don't scale. Truncation needs its own error, not a retry.
+
 ## Pending
 - ~~Test the judge with planted wrong factors.~~ Done.
-- Automated eval across 5 incidents (GitLab, AWS S3 done; Google Cloud, AWS DynamoDB, CrowdStrike to do).
+- Automated eval across 5 incidents (GitLab, AWS S3, Google Cloud, AWS DynamoDB done; CrowdStrike to do).

@@ -28,12 +28,17 @@ THINKING_OFF = {
 }
 MAX_TOKENS = 2000
 REVIEW_MAX_TOKENS = 4000  # Step 4 rewrites factors + action items, so it needs more room
+TIMELINE_MAX_TOKENS = 8000  # Step 1 lists every event, so long reports need more room
 DEFAULT_INPUT = "data/gitlab_timeline.txt"
 
 client = ai.Client()
 
 
 # ---------- Helpers ----------
+
+class TruncatedResponseError(RuntimeError):
+    """The model hit max_tokens, so its reply is cut off."""
+
 
 def ask_llm(prompt, max_tokens=MAX_TOKENS, model=MODEL):
     """Send one prompt to the model and return its text reply."""
@@ -44,6 +49,12 @@ def ask_llm(prompt, max_tokens=MAX_TOKENS, model=MODEL):
         # aisuite only reads the first text block, so turn off "thinking" blocks
         thinking=THINKING_OFF[model],
     )
+    # aisuite maps Anthropic's stop_reason "max_tokens" to finish_reason "length"
+    if response.choices[0].finish_reason == "length":
+        raise TruncatedResponseError(
+            f"{model} reply was cut off at max_tokens={max_tokens}. "
+            "Raise this step's max_tokens; retrying with the same limit would be cut off again."
+        )
     return response.choices[0].message.content
 
 
@@ -57,22 +68,28 @@ def parse_json(text):
 
 
 def run_step(name, prompt, validate, max_tokens=MAX_TOKENS, model=MODEL):
-    """Ask the model, parse and validate the JSON. Retry once on failure."""
-    reply = ask_llm(prompt, max_tokens, model)
-    try:
-        data = parse_json(reply)
-        validate(data)
-        return data
-    except (json.JSONDecodeError, ValueError) as error:
-        problem = str(error)
-        print(f"  {name}: validation failed ({problem}). Retrying once...")
+    """Ask the model, parse and validate the JSON. Retry once on failure.
 
-    retry_prompt = (
-        prompt
-        + "\n\nYour previous answer was invalid because: " + problem
-        + "\nReturn ONLY valid JSON in the exact format requested."
-    )
-    reply = ask_llm(retry_prompt, max_tokens, model)
+    A truncated reply is not retried: the same limit would truncate it again.
+    """
+    try:
+        reply = ask_llm(prompt, max_tokens, model)
+        try:
+            data = parse_json(reply)
+            validate(data)
+            return data
+        except (json.JSONDecodeError, ValueError) as error:
+            problem = str(error)
+            print(f"  {name}: validation failed ({problem}). Retrying once...")
+
+        retry_prompt = (
+            prompt
+            + "\n\nYour previous answer was invalid because: " + problem
+            + "\nReturn ONLY valid JSON in the exact format requested."
+        )
+        reply = ask_llm(retry_prompt, max_tokens, model)
+    except TruncatedResponseError as error:
+        raise TruncatedResponseError(f"{name}: {error}") from None
     data = parse_json(reply)  # raises if still invalid
     validate(data)
     return data
@@ -188,7 +205,7 @@ Return ONLY JSON in this format, with no other text:
 
 INCIDENT REPORT:
 {incident_text}"""
-    return run_step("Step 1", prompt, validate_timeline)
+    return run_step("Step 1", prompt, validate_timeline, TIMELINE_MAX_TOKENS)
 
 
 def find_contributing_factors(incident_text, timeline):

@@ -1,0 +1,60 @@
+{
+  "factors": [
+    {
+      "factor": "Race condition between DNS Enactors: a delayed Enactor applied an older plan that overwrote a newer plan, because the one-time check that a plan is newer than the previously applied plan was not sufficient to prevent it.",
+      "evidence": "\"Right before the event, one DNS Enactor experienced unusually high delays and needed to retry its update on several DNS endpoints... the first (delayed) Enactor applied its much older plan to the regional DynamoDB endpoint, overwriting the newer plan.\""
+    },
+    {
+      "factor": "Plan clean-up process deleted the active plan, leaving the regional DynamoDB DNS record empty and no Enactor able to apply further updates.",
+      "evidence": "\"The second Enactor's clean-up process then deleted this older plan because it was many generations older than the plan it had just applied. As this plan was deleted, all IP addresses for the regional endpoint were immediately removed, leaving an empty DNS record.\""
+    },
+    {
+      "factor": "Automation did not self-repair the inconsistent DNS state; manual operator intervention was required, lengthening the DynamoDB outage.",
+      "evidence": "\"The automation did not repair the record. Manual operator intervention was required.\""
+    },
+    {
+      "factor": "Strong dependency of EC2 droplet lease management (DWFM) on DynamoDB, so the DynamoDB outage caused lease timeouts that persisted after DynamoDB recovered.",
+      "evidence": "\"DropletWorkflow Manager (DWFM)... state checks began to fail, because the process depends on DynamoDB... Between 11:48 PM and 2:24 AM, leases between DWFM and droplets slowly timed out.\""
+    },
+    {
+      "factor": "No established operational recovery procedure for DWFM lease backlog, so recovery required trial-and-error mitigation under time pressure.",
+      "evidence": "\"There was no established operational recovery procedure for this situation, and engineers took care not to cause further issues while attempting multiple mitigation steps.\""
+    },
+    {
+      "factor": "Lease re-establishment work timed out and queued retries, so DWFM could not make forward progress in recovering the EC2 fleet.",
+      "evidence": "\"establishing new leases took long enough that the work timed out before it completed. Additional work was queued to retry, and DWFM was unable to make forward progress in recovering leases.\""
+    },
+    {
+      "factor": "Network Manager propagation backlog caused by the delayed EC2 recovery, so new instances launched without network connectivity.",
+      "evidence": "\"Network Manager began propagating network configurations to newly launched instances, with a significant backlog from the delay... New instances could launch but lacked network connectivity.\""
+    },
+    {
+      "factor": "NLB health check subsystem brought new EC2 instances into service before network state had propagated, causing alternating health check failures.",
+      "evidence": "\"the health check subsystem brought new EC2 instances into service before their network state had fully propagated, so health checks failed even when NLB nodes and targets were healthy.\""
+    },
+    {
+      "factor": "Health check failures increased load on the health check subsystem, which degraded and triggered automatic AZ DNS failover that removed capacity from service.",
+      "evidence": "\"The alternating results increased load on the health check subsystem, which degraded, delayed health checks and triggered automatic AZ DNS failover.\""
+    },
+    {
+      "factor": "Cascading dependencies: NLB health check failures triggered Lambda instance terminations and STS errors, spreading impact to other services.",
+      "evidence": "\"From 7:04 AM, NLB health check failures triggered instance terminations, leaving Lambda internal systems under-scaled\" and \"STS... errors again 8:31-9:59 AM due to NLB health check failures.\""
+    },
+    {
+      "factor": "Lambda's internal SQS-polling subsystem failed and did not recover automatically.",
+      "evidence": "\"An internal subsystem polling SQS queues failed and did not recover automatically; it was restored at 4:40 AM.\""
+    },
+    {
+      "factor": "Regional control-plane dependencies: Redshift IAM credential resolution and other services relied on us-east-1 endpoints, and IAM sign-in depended on DynamoDB, spreading impact globally.",
+      "evidence": "\"Redshift customers in all Regions could not use IAM user credentials for queries, because Redshift used an IAM API in us-east-1 to resolve user groups.\" and \"AWS Management Console sign-in... IAM user authentication failures due to DynamoDB issues.\""
+    },
+    {
+      "factor": "Support Center failover to another region exposed an account metadata subsystem that returned invalid responses, blocking legitimate users.",
+      "evidence": "\"it failed over to another region as designed, but an account metadata subsystem returned invalid responses that blocked legitimate users.\""
+    },
+    {
+      "factor": "Clusters needing host replacement were blocked because EC2 launches were impaired, prolonging Redshift recovery.",
+      "evidence": "\"Clusters needing host replacement were blocked because EC2 launches were impaired.\""
+    }
+  ]
+}

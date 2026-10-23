@@ -1,0 +1,233 @@
+{
+  "factor_verdicts": [
+    {
+      "id": 1,
+      "verdict": "keep",
+      "reason": "The race between a delayed Enactor and the second Enactor's clean-up directly caused the empty DNS record, and the evidence supports it."
+    },
+    {
+      "id": 2,
+      "verdict": "merge with #1",
+      "reason": "The one-time freshness check is the mechanism that let the stale plan overwrite the newer one, so it describes the same underlying race condition as #1.",
+      "new_wording": null
+    },
+    {
+      "id": 3,
+      "verdict": "keep",
+      "reason": "The report states the automation did not repair the record and manual intervention was required, which delayed recovery."
+    },
+    {
+      "id": 4,
+      "verdict": "keep",
+      "reason": "The report shows DWFM state checks failed because of the DynamoDB dependency, causing leases to time out and EC2 launches to fail."
+    },
+    {
+      "id": 5,
+      "verdict": "keep",
+      "reason": "The report directly documents lease re-establishment timeouts, retry queues, and the lack of a recovery procedure, which delayed EC2 recovery."
+    },
+    {
+      "id": 6,
+      "verdict": "keep",
+      "reason": "The report documents the Network Manager backlog leaving new instances without connectivity until 10:36 AM."
+    },
+    {
+      "id": 7,
+      "verdict": "keep",
+      "reason": "The report documents the health check subsystem bringing instances into service before network propagation and the alternating results degrading it."
+    },
+    {
+      "id": 8,
+      "verdict": "keep",
+      "reason": "Automatic failover removed capacity and disabling it at 9:36 AM resolved the errors, but the reworded text must not imply the engineers were at fault for timing.",
+      "new_wording": "Automatic NLB health check failover removed healthy capacity during the degraded state, and no pre-defined threshold or fast path existed for disabling it, so the mitigation was applied at 9:36 AM, after impact had extended."
+    },
+    {
+      "id": 9,
+      "verdict": "keep",
+      "reason": "The report shows Lambda, STS, Connect and container services were affected through dependencies on DynamoDB, EC2 and NLB, widening customer impact.",
+      "new_wording": "Downstream services (Lambda, STS, Amazon Connect, ECS/EKS/Fargate) depended on DynamoDB, EC2 or NLB, so failures propagated across many AWS services; this also includes Redshift host replacement being blocked by impaired EC2 launches."
+    },
+    {
+      "id": 10,
+      "verdict": "remove",
+      "reason": "The evidence shows temporary mitigations restored internal tooling (which helped recovery), and the Redshift IAM example does not support the claim about internal tooling or Support Center dependencies on DynamoDB."
+    },
+    {
+      "id": 11,
+      "verdict": "keep",
+      "reason": "The report states the SQS polling subsystem did not recover automatically and was restored at 4:40 AM, prolonging Lambda impact."
+    },
+    {
+      "id": 12,
+      "verdict": "merge with #9",
+      "reason": "Redshift host replacement being blocked by impaired EC2 launches is another instance of downstream services depending on EC2, the same underlying issue as #9."
+    }
+  ],
+  "factors": [
+    {
+      "factor": "Race condition between DNS Enactors: a delayed Enactor applied an older plan over a newer one, and the clean-up process of another Enactor then deleted the active plan, leaving an empty DNS record for the regional DynamoDB endpoint",
+      "evidence": "\"the first (delayed) Enactor applied its much older plan to the regional DynamoDB endpoint, overwriting the newer plan. The second Enactor's clean-up process then deleted this older plan because it was many generations older than the plan it had just applied. As this plan was deleted, all IP addresses for the regional endpoint were immediately removed, leaving an empty DNS record.\" | \"Before it begins to apply a new plan, the Enactor makes a one-time check that its plan is newer than the previously applied plan.\""
+    },
+    {
+      "factor": "Automation did not self-heal the inconsistent state, so the system could not apply subsequent plan updates and required manual operator intervention",
+      "evidence": "\"Because the active plan was deleted, the system was left in an inconsistent state in which no DNS Enactor could apply subsequent plan updates. The automation did not repair the record. Manual operator intervention was required.\""
+    },
+    {
+      "factor": "Strong dependency of EC2 control-plane subsystems (DWFM) on DynamoDB, so the DynamoDB DNS failure cascaded into EC2 lease failures",
+      "evidence": "\"DWFM state checks began to fail, because the process depends on DynamoDB. Droplets would need a new lease before further instance state changes could happen. Between 11:48 PM and 2:24 AM, leases between DWFM and droplets slowly timed out.\""
+    },
+    {
+      "factor": "Lease re-establishment after DynamoDB recovery overwhelmed DWFM, causing timeouts and queued retries with no forward progress, and no established operational recovery procedure existed for this situation",
+      "evidence": "\"Because of the large number of droplets, establishing new leases took long enough that the work timed out before it completed. Additional work was queued to retry, and DWFM was unable to make forward progress in recovering leases. There was no established operational recovery procedure for this situation\""
+    },
+    {
+      "factor": "Network configuration propagation backlog after EC2 capacity was restored, causing new instances to launch without network connectivity",
+      "evidence": "\"Network Manager began propagating network configurations to newly launched instances, with a significant backlog from the delay.\" and \"New instances could launch but lacked network connectivity.\""
+    },
+    {
+      "factor": "NLB health check subsystem removed healthy nodes because it brought instances into service before their network state had fully propagated, and alternating results amplified load",
+      "evidence": "\"the health check subsystem brought new EC2 instances into service before their network state had fully propagated, so health checks failed even when NLB nodes and targets were healthy.\" and \"The alternating results increased load on the health check subsystem, which degraded, delayed health checks and triggered automatic AZ DNS failover.\""
+    },
+    {
+      "factor": "Automatic NLB health check failover removed healthy capacity during the degraded state, and no pre-defined threshold or fast path existed for disabling it, so the mitigation was applied at 9:36 AM, after impact had extended.",
+      "evidence": "\"For multi-AZ load balancers, this took capacity out of service, and applications saw connection errors if remaining capacity was insufficient.\" and \"Engineers disabled automatic health check failover for NLB, bringing all healthy nodes and targets back into service\" (at 9:36 AM, after detection at 6:52 AM)"
+    },
+    {
+      "factor": "Downstream services (Lambda, STS, Amazon Connect, ECS/EKS/Fargate) depended on DynamoDB, EC2 or NLB, so failures propagated across many AWS services; this also includes Redshift host replacement being blocked by impaired EC2 launches.",
+      "evidence": "\"From 7:04 AM, NLB health check failures triggered instance terminations, leaving Lambda internal systems under-scaled\" and \"STS ... errors again 8:31-9:59 AM due to NLB health check failures.\" | \"Clusters needing host replacement were blocked because EC2 launches were impaired.\""
+    },
+    {
+      "factor": "Lambda internal SQS polling subsystem did not recover automatically after the DynamoDB issue, prolonging impact",
+      "evidence": "\"An internal subsystem polling SQS queues failed and did not recover automatically; it was restored at 4:40 AM.\""
+    }
+  ],
+  "action_items": [
+    {
+      "action": "Add a check during each DNS plan application that verifies the plan generation is newer than the currently active plan for every endpoint update, not only once before application begins, so a delayed Enactor cannot overwrite a newer plan.",
+      "owner_role": "DynamoDB team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Modify the plan clean-up process so it never deletes the currently active plan or leaves a regional endpoint with an empty record set, and add a guard that aborts deletion when the target plan is not confirmed superseded.",
+      "owner_role": "DynamoDB team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Implement automated detection and self-repair for an empty or inconsistent DNS record set on DynamoDB endpoints, including restoring the last known good plan without requiring manual operator intervention.",
+      "owner_role": "DynamoDB team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Create and document an operational runbook for recovering DNS plan state in an inconsistent condition, and rehearse it through game days.",
+      "owner_role": "DynamoDB team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Add an alarm on the regional DynamoDB DNS record count and on Enactor plan lag or retry counts so that empty or stalled DNS state is detected before customer-facing failures begin.",
+      "owner_role": "DynamoDB team",
+      "type": "detect",
+      "priority": "high"
+    },
+    {
+      "action": "Remove or reduce the hard dependency of DWFM lease management on DynamoDB so EC2 control-plane state checks can continue or degrade gracefully during a DynamoDB outage.",
+      "owner_role": "EC2 team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Establish and document a standard operating procedure for mass lease re-establishment after a control-plane outage, including rate-limited recovery and safe DWFM host restart steps.",
+      "owner_role": "EC2 team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Ensure Network Manager propagation backlog is monitored with alarms, and add capacity or prioritization so that network configuration propagation can keep pace with a surge of new instance launches after recovery.",
+      "owner_role": "EC2 networking team",
+      "type": "detect",
+      "priority": "medium"
+    },
+    {
+      "action": "Change the NLB health check subsystem to wait for network state propagation to complete before bringing newly launched instances into service, preventing false health check failures.",
+      "owner_role": "Network Load Balancer team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Add safeguards that limit how much capacity automatic AZ DNS health check failover can remove during degraded health check conditions, and add an operator-accessible kill switch with a documented threshold for disabling it.",
+      "owner_role": "Network Load Balancer team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Add alerting on alternating or flapping NLB health check results so engineers are paged early, before automatic failover removes capacity.",
+      "owner_role": "Network Load Balancer team",
+      "type": "detect",
+      "priority": "medium"
+    },
+    {
+      "action": "Add automatic recovery for the Lambda SQS polling subsystem so it restarts without manual intervention when it fails, and add health alarms on that subsystem.",
+      "owner_role": "Lambda team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Reduce Lambda's dependency on NLB-backed capacity and EC2 launches by maintaining headroom or a pre-provisioned capacity buffer that survives health check failover events.",
+      "owner_role": "Lambda team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Remove the dependency of Redshift IAM user group resolution on the us-east-1 IAM API, or provide a regional fallback, so Redshift in other Regions is not impacted by us-east-1 failures.",
+      "owner_role": "Redshift team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Remove the dependency of console sign-in and STS authentication on us-east-1 DynamoDB and NLB so that IAM authentication can continue for customers during a regional DynamoDB outage.",
+      "owner_role": "IAM team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Document and automate the dependency map between core AWS services and us-east-1 foundational services (DynamoDB, EC2, NLB) to support faster impact assessment and cross-team coordination during future incidents.",
+      "owner_role": "Service reliability team",
+      "type": "detect",
+      "priority": "low"
+    }
+  ],
+  "changes": [
+    {
+      "change": "Merged #2 into #1: Lack of a one-time plan-freshness check that was sufficient to prevent an older plan from overwriting a newer one, since the check was only performed once before applying a plan rather than during the per-endpoint updates",
+      "reason": "The one-time freshness check is the mechanism that let the stale plan overwrite the newer one, so it describes the same underlying race condition as #1."
+    },
+    {
+      "change": "Reworded #8: Automatic NLB health check failover removed healthy capacity during the degraded state, and no pre-defined threshold or fast path existed for disabling it, so the mitigation was applied at 9:36 AM, after impact had extended.",
+      "reason": "Automatic failover removed capacity and disabling it at 9:36 AM resolved the errors, but the reworded text must not imply the engineers were at fault for timing."
+    },
+    {
+      "change": "Reworded #9: Downstream services (Lambda, STS, Amazon Connect, ECS/EKS/Fargate) depended on DynamoDB, EC2 or NLB, so failures propagated across many AWS services; this also includes Redshift host replacement being blocked by impaired EC2 launches.",
+      "reason": "The report shows Lambda, STS, Connect and container services were affected through dependencies on DynamoDB, EC2 and NLB, widening customer impact."
+    },
+    {
+      "change": "Removed #10: Dependency of internal tooling and of the Support Center and console sign-in on regional DynamoDB and us-east-1 services, which limited recovery actions and customer access",
+      "reason": "The evidence shows temporary mitigations restored internal tooling (which helped recovery), and the Redshift IAM example does not support the claim about internal tooling or Support Center dependencies on DynamoDB."
+    },
+    {
+      "change": "Merged #12 into #9: Redshift clusters needing host replacement were blocked because EC2 launches were impaired, extending recovery well beyond the DynamoDB outage",
+      "reason": "Redshift host replacement being blocked by impaired EC2 launches is another instance of downstream services depending on EC2, the same underlying issue as #9."
+    },
+    {
+      "change": "Changed owner_role of the DNS plan state recovery runbook item from 'On-call engineer' to 'DynamoDB team'.",
+      "reason": "An owner role must be a team or role accountable for delivery; an individual on-call position cannot own and verify a runbook with game days."
+    },
+    {
+      "change": "Removed the action item to fix the account metadata subsystem in Support Center failover.",
+      "reason": "It addressed only former factor #10, which was removed because its evidence did not support the claim."
+    }
+  ]
+}

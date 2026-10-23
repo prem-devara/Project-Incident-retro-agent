@@ -1,0 +1,101 @@
+{
+  "impact_summary": "Customers and internal AWS services in the us-east-1 Region experienced widespread disruption from 11:48 PM Oct 19 to 2:20 PM Oct 20 (PDT). DynamoDB API error rates were elevated from 11:48 PM to 2:40 AM due to an empty regional DNS record, with global table replication lag persisting until 2:32 AM. New EC2 instance launches failed or were impaired from 2:25 AM until 1:50 PM, and NLB connection errors affected some load balancers from 5:30 AM to 2:09 PM. Dependent services including Lambda, ECS/EKS/Fargate, Amazon Connect, STS, IAM console sign-in, Redshift, and Support Center were also affected for periods ranging from roughly 1 to 14 hours.",
+  "action_items": [
+    {
+      "action": "Fix the DNS Enactor race condition so that a plan is only applied if it is newer than the currently active plan, verified atomically at the time of the Route53 transaction rather than with a one-time check before applying.",
+      "owner_role": "DynamoDB DNS management team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Change the plan clean-up process so it never deletes the currently active plan or any plan that could still be in use by an Enactor, and add safeguards that prevent removing all IP addresses from a regional endpoint record.",
+      "owner_role": "DynamoDB DNS management team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Add automated detection and self-repair for empty or inconsistent DNS records on DynamoDB endpoints, including automatic rollback to the last known good plan.",
+      "owner_role": "DynamoDB DNS management team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Create and regularly exercise a runbook for recovering from an inconsistent DNS plan state, so manual intervention is faster and does not depend on ad hoc investigation.",
+      "owner_role": "On-call engineer",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Decouple DWFM lease management from DynamoDB availability so droplet leases can be maintained or safely recovered during a DynamoDB outage.",
+      "owner_role": "EC2 compute infrastructure team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Develop and document an operational recovery procedure for DWFM lease backlogs, including throttling thresholds, batching of lease re-establishment, and safe host restart sequencing.",
+      "owner_role": "EC2 compute infrastructure team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Modify lease re-establishment work so that timeouts do not cause unbounded retry queuing, and add backpressure to prevent DWFM from becoming unable to make forward progress.",
+      "owner_role": "EC2 compute infrastructure team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Ensure Network Manager propagation backlog is monitored with alerts and capacity headroom, and gate new instance launches on confirmed network state propagation.",
+      "owner_role": "Networking team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Change the NLB health check subsystem so new EC2 instances are not brought into service until their network state has propagated, and add rate limiting to health check load to avoid cascading degradation.",
+      "owner_role": "Networking team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Add safeguards that prevent automatic AZ DNS failover from removing large amounts of capacity when health check results are alternating or the health check subsystem itself is degraded.",
+      "owner_role": "Networking team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Make Lambda's SQS-polling subsystem self-healing so it automatically recovers from failures without manual restoration, and add alerting on its health.",
+      "owner_role": "Lambda service team",
+      "type": "detect",
+      "priority": "medium"
+    },
+    {
+      "action": "Reduce Lambda's dependency on NLB health check-driven instance termination by protecting scaling capacity during transient network impairments.",
+      "owner_role": "Lambda service team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Identify and remove or add regional fallbacks for control-plane dependencies on us-east-1 endpoints, including Redshift IAM credential resolution and IAM sign-in, so impact does not spread globally.",
+      "owner_role": "Identity and Redshift service teams",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Fix the account metadata subsystem used by AWS Support Center so it returns valid responses during cross-region failover, and test failover paths under realistic conditions.",
+      "owner_role": "AWS Support Center engineering team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Establish a priority path for EC2 host replacement for Redshift and other managed services during EC2 launch impairments so cluster recovery is not blocked.",
+      "owner_role": "Redshift service team",
+      "type": "mitigate",
+      "priority": "low"
+    },
+    {
+      "action": "Add cross-service dependency monitoring and alerting that flags when a shared dependency such as DynamoDB or EC2 launches is degraded, to speed up detection and communication to dependent teams.",
+      "owner_role": "Service reliability and observability team",
+      "type": "detect",
+      "priority": "medium"
+    }
+  ]
+}

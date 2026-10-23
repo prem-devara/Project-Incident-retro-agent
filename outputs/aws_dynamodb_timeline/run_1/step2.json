@@ -1,0 +1,48 @@
+{
+  "factors": [
+    {
+      "factor": "Race condition between DNS Enactors: a delayed Enactor applied an older plan after a newer plan had already been applied, overwriting it, because the one-time check that its plan was newer ran only before it began applying, not at the point of each Route53 write.",
+      "evidence": "\"Before it begins to apply a new plan, the Enactor makes a one-time check that its plan is newer than the previously applied plan.\" and \"the first (delayed) Enactor applied its much older plan to the regional DynamoDB endpoint, overwriting the newer plan.\""
+    },
+    {
+      "factor": "Plan clean-up process deleted the active plan, leaving the regional DNS record empty and no Enactor able to apply subsequent updates.",
+      "evidence": "\"The second Enactor's clean-up process then deleted this older plan because it was many generations older than the plan it had just applied. As this plan was deleted, all IP addresses for the regional endpoint were immediately removed, leaving an empty DNS record.\""
+    },
+    {
+      "factor": "Automation lacked a self-repair path for the empty-record inconsistent state, so recovery depended on manual operator intervention, prolonging the DynamoDB outage.",
+      "evidence": "\"The automation did not repair the record. Manual operator intervention was required.\""
+    },
+    {
+      "factor": "Failure of the DNS Enactor (delayed retries) combined with the Planner continuing to generate many newer plans, increasing the chance of a stale plan being applied out of order.",
+      "evidence": "\"Right before the event, one DNS Enactor experienced unusually high delays and needed to retry its update on several DNS endpoints. While it was slowly working through the endpoints, the DNS Planner continued to run and produced many newer generations of plans.\""
+    },
+    {
+      "factor": "Hard dependency of EC2 droplet lease management (DWFM) on DynamoDB, so the DynamoDB DNS failure cascaded into EC2 state checks and lease expiry.",
+      "evidence": "\"DWFM state checks began to fail, because the process depends on DynamoDB.\" and \"Between 11:48 PM and 2:24 AM, leases between DWFM and droplets slowly timed out.\""
+    },
+    {
+      "factor": "No established operational recovery procedure for DWFM lease re-establishment at scale, causing recovery work to time out and queue without forward progress.",
+      "evidence": "\"There was no established operational recovery procedure for this situation, and engineers took care not to cause further issues while attempting multiple mitigation steps.\" and \"DWFM was unable to make forward progress in recovering leases.\""
+    },
+    {
+      "factor": "Health check subsystem brought new EC2 instances into service before network state had propagated, causing alternating health check failures and removal of healthy capacity from DNS.",
+      "evidence": "\"the health check subsystem brought new EC2 instances into service before their network state had fully propagated, so health checks failed even when NLB nodes and targets were healthy.\""
+    },
+    {
+      "factor": "Degraded health check subsystem triggered automatic AZ DNS failover, removing capacity from multi-AZ load balancers and causing connection errors; the automatic failover had to be disabled manually.",
+      "evidence": "\"The alternating results increased load on the health check subsystem, which degraded, delayed health checks and triggered automatic AZ DNS failover.\" and \"Engineers disabled automatic health check failover for NLB\""
+    },
+    {
+      "factor": "Cross-service dependency on EC2 and NLB: Lambda, Redshift, STS, Connect and others were impaired by DynamoDB, EC2 launch, or NLB issues, widening the blast radius.",
+      "evidence": "\"Clusters needing host replacement were blocked because EC2 launches were impaired.\" and \"From 7:04 AM, NLB health check failures triggered instance terminations, leaving Lambda internal systems under-scaled\""
+    },
+    {
+      "factor": "Redshift relied on an IAM API in us-east-1 to resolve user groups, spreading the regional failure to Redshift customers in all Regions.",
+      "evidence": "\"Redshift customers in all Regions could not use IAM user credentials for queries, because Redshift used an IAM API in us-east-1 to resolve user groups.\""
+    },
+    {
+      "factor": "Support Center regional failover worked as designed, but an account metadata subsystem returned invalid responses, showing that failover paths had untested dependencies.",
+      "evidence": "\"it failed over to another region as designed, but an account metadata subsystem returned invalid responses that blocked legitimate users.\""
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+CONTRIBUTING FACTORS
+- A race between DNS Enactors let a delayed Enactor apply a much older plan over a newer one; its one-time "is my plan newer" check was stale by the time it applied
+- The plan clean-up process deleted the plan that was currently active, removing all IP addresses for the regional endpoint (empty DNS record)
+- Deleting the active plan left the system in an inconsistent state that the automation could not repair; manual intervention was required
+- Many AWS services, including EC2's DWFM, depend on DynamoDB in us-east-1, so the DNS failure cascaded across services
+- DWFM could not re-establish droplet leases at fleet scale before they timed out (congestive collapse), and there was no established recovery procedure
+- The backlog of delayed network state changes overloaded Network Manager, so new instances launched without connectivity
+- NLB health checks brought instances into service before their network state propagated; flapping checks triggered AZ DNS failover that removed too much capacity
+- The DWFM recovery workflow had never been tested at this scale (not in input)
+
+ACTION ITEMS
+- Disable the DynamoDB DNS Planner and DNS Enactor automation worldwide until fixed
+- Fix the race condition and add protections against applying incorrect DNS plans
+- Add a velocity control to limit how much capacity a single NLB can remove during health-check AZ failover
+- Build a test suite that exercises the DWFM recovery workflow at scale
+- Throttle EC2 data propagation based on the size of the waiting queue
+- Look for ways to avoid similar impact across services and reduce time to recovery

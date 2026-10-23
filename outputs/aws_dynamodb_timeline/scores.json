@@ -1,0 +1,806 @@
+{
+  "input_file": "data/aws_dynamodb_timeline.txt",
+  "answer_key": "eval/aws_dynamodb_answer_key.txt",
+  "judge_model": "anthropic:claude-sonnet-5-5",
+  "rescored": false,
+  "key_factors": [
+    {
+      "id": 1,
+      "text": "A race between DNS Enactors let a delayed Enactor apply a much older plan over a newer one; its one-time \"is my plan newer\" check was stale by the time it applied",
+      "excluded": false
+    },
+    {
+      "id": 2,
+      "text": "The plan clean-up process deleted the plan that was currently active, removing all IP addresses for the regional endpoint (empty DNS record)",
+      "excluded": false
+    },
+    {
+      "id": 3,
+      "text": "Deleting the active plan left the system in an inconsistent state that the automation could not repair; manual intervention was required",
+      "excluded": false
+    },
+    {
+      "id": 4,
+      "text": "Many AWS services, including EC2's DWFM, depend on DynamoDB in us-east-1, so the DNS failure cascaded across services",
+      "excluded": false
+    },
+    {
+      "id": 5,
+      "text": "DWFM could not re-establish droplet leases at fleet scale before they timed out (congestive collapse), and there was no established recovery procedure",
+      "excluded": false
+    },
+    {
+      "id": 6,
+      "text": "The backlog of delayed network state changes overloaded Network Manager, so new instances launched without connectivity",
+      "excluded": false
+    },
+    {
+      "id": 7,
+      "text": "NLB health checks brought instances into service before their network state propagated; flapping checks triggered AZ DNS failover that removed too much capacity",
+      "excluded": false
+    },
+    {
+      "id": 8,
+      "text": "The DWFM recovery workflow had never been tested at this scale",
+      "excluded": true
+    }
+  ],
+  "runs": [
+    {
+      "run": 1,
+      "labels": [
+        {
+          "id": 1,
+          "factor": "Race condition between DNS Enactors: a delayed Enactor applied an older plan after a newer plan had already been applied, overwriting it, because the check that its plan was newer ran only once before application began, not at each Route53 write. Contributing conditions: that Enactor experienced unusually high delays and retries while the Planner continued producing many newer plan generations, widening the window for an out-of-order apply.",
+          "label": "match",
+          "reason": "Describes the delayed Enactor applying an older plan because the one-time newer-plan check was stale by apply time, matching K1.",
+          "key_ids": [
+            1
+          ],
+          "key_texts": [
+            "A race between DNS Enactors let a delayed Enactor apply a much older plan over a newer one; its one-time \"is my plan newer\" check was stale by the time it applied"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 2,
+          "factor": "Plan clean-up process deleted the active plan, leaving the regional DNS record empty and no Enactor able to apply subsequent updates.",
+          "label": "match",
+          "reason": "Clean-up deleting the active plan and leaving an empty DNS record is exactly K2.",
+          "key_ids": [
+            2
+          ],
+          "key_texts": [
+            "The plan clean-up process deleted the plan that was currently active, removing all IP addresses for the regional endpoint (empty DNS record)"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 3,
+          "factor": "Automation lacked a self-repair path for the empty-record inconsistent state, so recovery depended on manual operator intervention, prolonging the DynamoDB outage.",
+          "label": "match",
+          "reason": "Automation failing to repair the inconsistent state and requiring manual intervention matches K3.",
+          "key_ids": [
+            3
+          ],
+          "key_texts": [
+            "Deleting the active plan left the system in an inconsistent state that the automation could not repair; manual intervention was required"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 4,
+          "factor": "Hard dependency of EC2 droplet lease management (DWFM) on DynamoDB, so the DynamoDB DNS failure cascaded into EC2 state checks and lease expiry.",
+          "label": "match",
+          "reason": "DWFM's dependency on DynamoDB causing the DNS failure to cascade into EC2 matches K4.",
+          "key_ids": [
+            4
+          ],
+          "key_texts": [
+            "Many AWS services, including EC2's DWFM, depend on DynamoDB in us-east-1, so the DNS failure cascaded across services"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 5,
+          "factor": "No established operational recovery procedure existed for DWFM lease re-establishment at fleet scale, so lease work timed out and queued retries prevented forward progress until throttling and selective host restarts were applied.",
+          "label": "match",
+          "reason": "Lack of recovery procedure and DWFM unable to re-establish leases at fleet scale matches K5.",
+          "key_ids": [
+            5
+          ],
+          "key_texts": [
+            "DWFM could not re-establish droplet leases at fleet scale before they timed out (congestive collapse), and there was no established recovery procedure"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 6,
+          "factor": "Health check subsystem brought new EC2 instances into service before network state had propagated, causing alternating health check failures and removal of healthy capacity from DNS.",
+          "label": "match",
+          "reason": "Health checks bringing instances into service before network state propagated is the first half of K7.",
+          "key_ids": [
+            7
+          ],
+          "key_texts": [
+            "NLB health checks brought instances into service before their network state propagated; flapping checks triggered AZ DNS failover that removed too much capacity"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 7,
+          "factor": "Degraded health check subsystem triggered automatic AZ DNS failover, removing capacity from multi-AZ load balancers and causing connection errors; the automatic failover had to be disabled manually.",
+          "label": "match",
+          "reason": "Degraded health check subsystem triggering automatic AZ DNS failover that removed capacity is the second half of K7.",
+          "key_ids": [
+            7
+          ],
+          "key_texts": [
+            "NLB health checks brought instances into service before their network state propagated; flapping checks triggered AZ DNS failover that removed too much capacity"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 8,
+          "factor": "Cross-service dependency on EC2 and NLB: Lambda, Redshift, STS, Connect and others were impaired by DynamoDB, EC2 launch, or NLB issues, widening the blast radius.",
+          "label": "match",
+          "reason": "Cross-service dependency on DynamoDB/EC2/NLB widening blast radius aligns with K4's cascading dependency factor.",
+          "key_ids": [
+            4
+          ],
+          "key_texts": [
+            "Many AWS services, including EC2's DWFM, depend on DynamoDB in us-east-1, so the DNS failure cascaded across services"
+          ],
+          "key_excluded": [
+            false
+          ]
+        }
+      ],
+      "counts": {
+        "match": 8,
+        "valid_extra": 0,
+        "duplicate": 0,
+        "wrong": 0
+      },
+      "total_factors": 8,
+      "recall": 0.8571428571428571,
+      "precision": 1.0,
+      "missed_key_factors": [
+        "The backlog of delayed network state changes overloaded Network Manager, so new instances launched without connectivity"
+      ]
+    },
+    {
+      "run": 2,
+      "labels": [
+        {
+          "id": 1,
+          "factor": "Race condition between DNS Enactors: a delayed Enactor applied an older plan over a newer one, and the clean-up process of another Enactor then deleted the active plan, leaving an empty DNS record for the regional DynamoDB endpoint",
+          "label": "match",
+          "reason": "Combines the delayed Enactor applying an older plan over a newer one (K1) with the clean-up deleting the active plan and leaving an empty DNS record (K2).",
+          "key_ids": [
+            1,
+            2
+          ],
+          "key_texts": [
+            "A race between DNS Enactors let a delayed Enactor apply a much older plan over a newer one; its one-time \"is my plan newer\" check was stale by the time it applied",
+            "The plan clean-up process deleted the plan that was currently active, removing all IP addresses for the regional endpoint (empty DNS record)"
+          ],
+          "key_excluded": [
+            false,
+            false
+          ]
+        },
+        {
+          "id": 2,
+          "factor": "Automation did not self-heal the inconsistent state, so the system could not apply subsequent plan updates and required manual operator intervention",
+          "label": "match",
+          "reason": "Describes the inconsistent state that automation could not repair, requiring manual operator intervention, which is exactly K3.",
+          "key_ids": [
+            3
+          ],
+          "key_texts": [
+            "Deleting the active plan left the system in an inconsistent state that the automation could not repair; manual intervention was required"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 3,
+          "factor": "Strong dependency of EC2 control-plane subsystems (DWFM) on DynamoDB, so the DynamoDB DNS failure cascaded into EC2 lease failures",
+          "label": "match",
+          "reason": "Describes EC2's DWFM dependency on DynamoDB causing the DNS failure to cascade, which matches K4.",
+          "key_ids": [
+            4
+          ],
+          "key_texts": [
+            "Many AWS services, including EC2's DWFM, depend on DynamoDB in us-east-1, so the DNS failure cascaded across services"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 4,
+          "factor": "Lease re-establishment after DynamoDB recovery overwhelmed DWFM, causing timeouts and queued retries with no forward progress, and no established operational recovery procedure existed for this situation",
+          "label": "match",
+          "reason": "Covers DWFM lease re-establishment timing out with queued retries and no established recovery procedure, matching K5.",
+          "key_ids": [
+            5
+          ],
+          "key_texts": [
+            "DWFM could not re-establish droplet leases at fleet scale before they timed out (congestive collapse), and there was no established recovery procedure"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 5,
+          "factor": "Network configuration propagation backlog after EC2 capacity was restored, causing new instances to launch without network connectivity",
+          "label": "match",
+          "reason": "Describes the Network Manager backlog causing new instances to launch without connectivity, matching K6.",
+          "key_ids": [
+            6
+          ],
+          "key_texts": [
+            "The backlog of delayed network state changes overloaded Network Manager, so new instances launched without connectivity"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 6,
+          "factor": "NLB health check subsystem removed healthy nodes because it brought instances into service before their network state had fully propagated, and alternating results amplified load",
+          "label": "match",
+          "reason": "Describes NLB health checks bringing instances into service before network state propagated and the resulting AZ failover removing capacity, matching K7.",
+          "key_ids": [
+            7
+          ],
+          "key_texts": [
+            "NLB health checks brought instances into service before their network state propagated; flapping checks triggered AZ DNS failover that removed too much capacity"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 7,
+          "factor": "Automatic NLB health check failover removed healthy capacity during the degraded state, and no pre-defined threshold or fast path existed for disabling it, so the mitigation was applied at 9:36 AM, after impact had extended.",
+          "label": "valid_extra",
+          "reason": "The report supports that disabling automatic failover came only at 9:36 AM after detection at 6:52 AM, prolonging impact, though the claim of no pre-defined threshold is not stated in the report."
+        },
+        {
+          "id": 8,
+          "factor": "Downstream services (Lambda, STS, Amazon Connect, ECS/EKS/Fargate) depended on DynamoDB, EC2 or NLB, so failures propagated across many AWS services; this also includes Redshift host replacement being blocked by impaired EC2 launches.",
+          "label": "match",
+          "reason": "Describes downstream services depending on DynamoDB/EC2 so failures propagated across AWS, which overlaps K4's cascade across dependent services.",
+          "key_ids": [
+            4
+          ],
+          "key_texts": [
+            "Many AWS services, including EC2's DWFM, depend on DynamoDB in us-east-1, so the DNS failure cascaded across services"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 9,
+          "factor": "Lambda internal SQS polling subsystem did not recover automatically after the DynamoDB issue, prolonging impact",
+          "label": "valid_extra",
+          "reason": "The report states the Lambda SQS polling subsystem failed and did not recover automatically until 4:40 AM, which prolonged Lambda impact but is not in the key."
+        }
+      ],
+      "counts": {
+        "match": 7,
+        "valid_extra": 2,
+        "duplicate": 0,
+        "wrong": 0
+      },
+      "total_factors": 9,
+      "recall": 1.0,
+      "precision": 1.0,
+      "missed_key_factors": []
+    },
+    {
+      "run": 3,
+      "labels": [
+        {
+          "id": 1,
+          "factor": "Race condition between DNS Enactors: a delayed Enactor applied an older plan after a newer plan had already been applied, overwriting it",
+          "label": "match",
+          "reason": "Describes the delayed Enactor applying an older plan over a newer one, which is the K1 race.",
+          "key_ids": [
+            1
+          ],
+          "key_texts": [
+            "A race between DNS Enactors let a delayed Enactor apply a much older plan over a newer one; its one-time \"is my plan newer\" check was stale by the time it applied"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 2,
+          "factor": "Plan clean-up process deleted the active plan, leaving the regional DNS record empty",
+          "label": "match",
+          "reason": "Clean-up deleting the active plan and leaving an empty DNS record is exactly K2.",
+          "key_ids": [
+            2
+          ],
+          "key_texts": [
+            "The plan clean-up process deleted the plan that was currently active, removing all IP addresses for the regional endpoint (empty DNS record)"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 3,
+          "factor": "Automation lacked safeguards to detect and repair an empty DNS record or an inconsistent state, requiring manual intervention",
+          "label": "match",
+          "reason": "Inconsistent state the automation could not repair, requiring manual intervention, matches K3.",
+          "key_ids": [
+            3
+          ],
+          "key_texts": [
+            "Deleting the active plan left the system in an inconsistent state that the automation could not repair; manual intervention was required"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 4,
+          "factor": "Services in us-east-1 and other Regions had hard dependencies on DynamoDB and other us-east-1 components (e.g., DWFM state checks, Redshift's IAM API call for user group resolution, and the Support Center account metadata subsystem), so the DynamoDB failure cascaded widely and spread impact beyond the Region.",
+          "label": "match",
+          "reason": "Hard dependencies on DynamoDB/us-east-1 causing a cascade across services matches K4.",
+          "key_ids": [
+            4
+          ],
+          "key_texts": [
+            "Many AWS services, including EC2's DWFM, depend on DynamoDB in us-east-1, so the DNS failure cascaded across services"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 5,
+          "factor": "No established operational recovery procedure for DWFM lease re-establishment after DynamoDB recovery, prolonging EC2 launch failures",
+          "label": "match",
+          "reason": "No established recovery procedure for DWFM lease recovery matches the procedure-gap part of K5.",
+          "key_ids": [
+            5
+          ],
+          "key_texts": [
+            "DWFM could not re-establish droplet leases at fleet scale before they timed out (congestive collapse), and there was no established recovery procedure"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 6,
+          "factor": "DWFM lease re-establishment at fleet scale timed out and queued retries without forward progress",
+          "label": "match",
+          "reason": "DWFM lease re-establishment timing out at fleet scale with no forward progress is the congestive collapse in K5.",
+          "key_ids": [
+            5
+          ],
+          "key_texts": [
+            "DWFM could not re-establish droplet leases at fleet scale before they timed out (congestive collapse), and there was no established recovery procedure"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 7,
+          "factor": "Network Load Balancer health checks marked new instances unhealthy before network state propagated, causing alternating health results and removal of capacity",
+          "label": "match",
+          "reason": "NLB health checks bringing instances into service before network state propagated, causing flapping, matches K7.",
+          "key_ids": [
+            7
+          ],
+          "key_texts": [
+            "NLB health checks brought instances into service before their network state propagated; flapping checks triggered AZ DNS failover that removed too much capacity"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 8,
+          "factor": "Automatic health check failover amplified load on the health check subsystem, removing capacity from service",
+          "label": "match",
+          "reason": "Health check load triggering automatic AZ failover that removed capacity is the second half of K7.",
+          "key_ids": [
+            7
+          ],
+          "key_texts": [
+            "NLB health checks brought instances into service before their network state propagated; flapping checks triggered AZ DNS failover that removed too much capacity"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 9,
+          "factor": "Network Manager backlog from the delayed EC2 recovery slowed propagation of network configuration to new instances",
+          "label": "match",
+          "reason": "Network Manager backlog delaying network configuration to new instances matches K6.",
+          "key_ids": [
+            6
+          ],
+          "key_texts": [
+            "The backlog of delayed network state changes overloaded Network Manager, so new instances launched without connectivity"
+          ],
+          "key_excluded": [
+            false
+          ]
+        }
+      ],
+      "counts": {
+        "match": 9,
+        "valid_extra": 0,
+        "duplicate": 0,
+        "wrong": 0
+      },
+      "total_factors": 9,
+      "recall": 1.0,
+      "precision": 1.0,
+      "missed_key_factors": []
+    },
+    {
+      "run": 4,
+      "labels": [
+        {
+          "id": 1,
+          "factor": "Race condition between two DNS Enactors: a delayed Enactor applied an older plan that overwrote a newer one, and the clean-up process of the other Enactor then deleted that older plan, leaving the regional endpoint with an empty DNS record",
+          "label": "match",
+          "reason": "Covers the delayed Enactor applying an older plan over a newer one (with the one-time check evidence) and clean-up deleting the active plan, leaving an empty DNS record.",
+          "key_ids": [
+            1,
+            2
+          ],
+          "key_texts": [
+            "A race between DNS Enactors let a delayed Enactor apply a much older plan over a newer one; its one-time \"is my plan newer\" check was stale by the time it applied",
+            "The plan clean-up process deleted the plan that was currently active, removing all IP addresses for the regional endpoint (empty DNS record)"
+          ],
+          "key_excluded": [
+            false,
+            false
+          ]
+        },
+        {
+          "id": 2,
+          "factor": "Automation did not detect or repair the empty DNS record, and the system was left in a state where no Enactor could apply further updates, requiring manual intervention",
+          "label": "match",
+          "reason": "Describes the inconsistent state that the automation could not repair and that required manual intervention, matching K3.",
+          "key_ids": [
+            3
+          ],
+          "key_texts": [
+            "Deleting the active plan left the system in an inconsistent state that the automation could not repair; manual intervention was required"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 3,
+          "factor": "Strong dependency of core AWS control-plane services (EC2 DWFM, Lambda, STS, IAM sign-in, Redshift, Connect) on DynamoDB in us-east-1 meant a DynamoDB DNS failure cascaded across many services",
+          "label": "match",
+          "reason": "Describes the cascade of DynamoDB dependency failures across DWFM and other services, matching K4.",
+          "key_ids": [
+            4
+          ],
+          "key_texts": [
+            "Many AWS services, including EC2's DWFM, depend on DynamoDB in us-east-1, so the DNS failure cascaded across services"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 4,
+          "factor": "No established operational recovery procedure for DWFM lease re-establishment after DNS restoration, causing prolonged EC2 launch failures",
+          "label": "match",
+          "reason": "Covers DWFM's inability to re-establish leases before timeouts and the lack of an established recovery procedure.",
+          "key_ids": [
+            5
+          ],
+          "key_texts": [
+            "DWFM could not re-establish droplet leases at fleet scale before they timed out (congestive collapse), and there was no established recovery procedure"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 5,
+          "factor": "Network Manager backlog from the EC2 recovery delayed network propagation, so new instances launched without connectivity",
+          "label": "match",
+          "reason": "Network Manager backlog causing new instances to launch without connectivity matches K6.",
+          "key_ids": [
+            6
+          ],
+          "key_texts": [
+            "The backlog of delayed network state changes overloaded Network Manager, so new instances launched without connectivity"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 6,
+          "factor": "NLB health check subsystem did not account for propagation delay, marking healthy nodes as failing and removing them from DNS in an oscillating pattern",
+          "label": "match",
+          "reason": "NLB health checks bringing instances into service before network state propagated, causing flapping, matches the first part of K7.",
+          "key_ids": [
+            7
+          ],
+          "key_texts": [
+            "NLB health checks brought instances into service before their network state propagated; flapping checks triggered AZ DNS failover that removed too much capacity"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 7,
+          "factor": "Automatic AZ DNS failover in NLB amplified the impact: the degraded health check subsystem triggered failover that removed multi-AZ capacity from service",
+          "label": "match",
+          "reason": "Automatic AZ DNS failover removing capacity matches the second part of K7.",
+          "key_ids": [
+            7
+          ],
+          "key_texts": [
+            "NLB health checks brought instances into service before their network state propagated; flapping checks triggered AZ DNS failover that removed too much capacity"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 8,
+          "factor": "Dependency of Lambda and STS on NLB and EC2 extended impact beyond DynamoDB recovery, with Lambda under-scaled after instance terminations triggered by health check failures",
+          "label": "valid_extra",
+          "reason": "The report supports Lambda being under-scaled from NLB-triggered instance terminations and STS errors from NLB failures extending the impact, though it is not in the key."
+        },
+        {
+          "id": 9,
+          "factor": "Lambda's internal SQS-polling subsystem did not recover automatically after the DynamoDB disruption",
+          "label": "valid_extra",
+          "reason": "The report states the SQS polling subsystem failed and did not recover automatically, which prolonged Lambda impact."
+        },
+        {
+          "id": 10,
+          "factor": "Global table replication lag and cross-region dependencies, including Redshift's use of an IAM API in us-east-1 for all Regions, spread the impact beyond us-east-1",
+          "label": "valid_extra",
+          "reason": "The report supports global table replication lag and Redshift's us-east-1 IAM API dependency spreading impact beyond us-east-1."
+        }
+      ],
+      "counts": {
+        "match": 7,
+        "valid_extra": 3,
+        "duplicate": 0,
+        "wrong": 0
+      },
+      "total_factors": 10,
+      "recall": 1.0,
+      "precision": 1.0,
+      "missed_key_factors": []
+    },
+    {
+      "run": 5,
+      "labels": [
+        {
+          "id": 1,
+          "factor": "Race condition between DNS Enactors: a delayed Enactor applied an older plan that overwrote a newer plan, because the one-time check that a plan is newer than the previously applied plan was not sufficient to prevent it.",
+          "label": "match",
+          "reason": "Describes the delayed Enactor applying an older plan over a newer one because the one-time newer-plan check was insufficient, exactly K1.",
+          "key_ids": [
+            1
+          ],
+          "key_texts": [
+            "A race between DNS Enactors let a delayed Enactor apply a much older plan over a newer one; its one-time \"is my plan newer\" check was stale by the time it applied"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 2,
+          "factor": "Plan clean-up process deleted the active plan, leaving the regional DynamoDB DNS record empty and no Enactor able to apply further updates.",
+          "label": "match",
+          "reason": "Clean-up deleted the active plan, leaving an empty DNS record for the regional endpoint, matching K2.",
+          "key_ids": [
+            2
+          ],
+          "key_texts": [
+            "The plan clean-up process deleted the plan that was currently active, removing all IP addresses for the regional endpoint (empty DNS record)"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 3,
+          "factor": "Automation did not self-repair the inconsistent DNS state; manual operator intervention was required, lengthening the DynamoDB outage.",
+          "label": "match",
+          "reason": "Automation could not repair the inconsistent state and manual intervention was needed, matching K3.",
+          "key_ids": [
+            3
+          ],
+          "key_texts": [
+            "Deleting the active plan left the system in an inconsistent state that the automation could not repair; manual intervention was required"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 4,
+          "factor": "Strong dependency of EC2 droplet lease management (DWFM) on DynamoDB, so the DynamoDB outage caused lease timeouts that persisted after DynamoDB recovered.",
+          "label": "match",
+          "reason": "DWFM's dependency on DynamoDB propagated the DNS failure to EC2, matching K4.",
+          "key_ids": [
+            4
+          ],
+          "key_texts": [
+            "Many AWS services, including EC2's DWFM, depend on DynamoDB in us-east-1, so the DNS failure cascaded across services"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 5,
+          "factor": "No established operational recovery procedure for DWFM lease backlog, so recovery required trial-and-error mitigation under time pressure.",
+          "label": "match",
+          "reason": "No established recovery procedure for the DWFM lease backlog, matching the second part of K5.",
+          "key_ids": [
+            5
+          ],
+          "key_texts": [
+            "DWFM could not re-establish droplet leases at fleet scale before they timed out (congestive collapse), and there was no established recovery procedure"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 6,
+          "factor": "Lease re-establishment work timed out and queued retries, so DWFM could not make forward progress in recovering the EC2 fleet.",
+          "label": "match",
+          "reason": "Lease establishment timing out with queued retries and no forward progress is the congestive collapse described in K5.",
+          "key_ids": [
+            5
+          ],
+          "key_texts": [
+            "DWFM could not re-establish droplet leases at fleet scale before they timed out (congestive collapse), and there was no established recovery procedure"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 7,
+          "factor": "Network Manager propagation backlog caused by the delayed EC2 recovery, so new instances launched without network connectivity.",
+          "label": "match",
+          "reason": "Network Manager backlog causing new instances to launch without connectivity, matching K6.",
+          "key_ids": [
+            6
+          ],
+          "key_texts": [
+            "The backlog of delayed network state changes overloaded Network Manager, so new instances launched without connectivity"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 8,
+          "factor": "NLB health check subsystem brought new EC2 instances into service before network state had propagated, causing alternating health check failures.",
+          "label": "match",
+          "reason": "Health check subsystem bringing instances into service before network state propagated, matching K7.",
+          "key_ids": [
+            7
+          ],
+          "key_texts": [
+            "NLB health checks brought instances into service before their network state propagated; flapping checks triggered AZ DNS failover that removed too much capacity"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 9,
+          "factor": "Health check failures increased load on the health check subsystem, which degraded and triggered automatic AZ DNS failover that removed capacity from service.",
+          "label": "match",
+          "reason": "Flapping health checks degrading the subsystem and triggering AZ DNS failover that removed capacity, matching K7.",
+          "key_ids": [
+            7
+          ],
+          "key_texts": [
+            "NLB health checks brought instances into service before their network state propagated; flapping checks triggered AZ DNS failover that removed too much capacity"
+          ],
+          "key_excluded": [
+            false
+          ]
+        },
+        {
+          "id": 10,
+          "factor": "Cascading dependencies: NLB health check failures triggered Lambda instance terminations and STS errors, spreading impact to other services.",
+          "label": "valid_extra",
+          "reason": "The report supports NLB health check failures triggering Lambda instance terminations and STS errors, extending impact beyond the key."
+        },
+        {
+          "id": 11,
+          "factor": "Lambda's internal SQS-polling subsystem failed and did not recover automatically.",
+          "label": "valid_extra",
+          "reason": "The report states the Lambda SQS polling subsystem failed and did not recover automatically, prolonging Lambda impact; not in the key."
+        },
+        {
+          "id": 12,
+          "factor": "Cross-service and cross-Region dependencies on us-east-1: Redshift resolved IAM user groups through an IAM API in us-east-1, causing IAM credential failures for Redshift customers in all Regions, and console IAM sign-in failed because it depended on DynamoDB.",
+          "label": "valid_extra",
+          "reason": "Report supports Redshift's dependence on a us-east-1 IAM API and console sign-in dependence on DynamoDB as cross-service dependency effects beyond the key."
+        },
+        {
+          "id": 13,
+          "factor": "Support Center failover to another region exposed an account metadata subsystem that returned invalid responses, blocking legitimate users.",
+          "label": "valid_extra",
+          "reason": "The report states the Support Center's account metadata subsystem returned invalid responses after failover, blocking users; a supported extra factor."
+        },
+        {
+          "id": 14,
+          "factor": "Clusters needing host replacement were blocked because EC2 launches were impaired, prolonging Redshift recovery.",
+          "label": "valid_extra",
+          "reason": "The report says Redshift clusters needing host replacement were blocked by impaired EC2 launches, prolonging its recovery."
+        }
+      ],
+      "counts": {
+        "match": 9,
+        "valid_extra": 5,
+        "duplicate": 0,
+        "wrong": 0
+      },
+      "total_factors": 14,
+      "recall": 1.0,
+      "precision": 1.0,
+      "missed_key_factors": []
+    }
+  ],
+  "summary": {
+    "successful_runs": 5,
+    "recall": {
+      "mean": 0.9714285714285713,
+      "min": 0.8571428571428571,
+      "max": 1.0
+    },
+    "precision": {
+      "mean": 1.0,
+      "min": 1.0,
+      "max": 1.0
+    }
+  }
+}

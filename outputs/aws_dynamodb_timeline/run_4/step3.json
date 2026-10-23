@@ -1,0 +1,95 @@
+{
+  "impact_summary": "Customers across AWS were affected by a disruption centered on the us-east-1 Region that began at 11:48 PM PDT on October 19 and ended at 2:20 PM PDT on October 20. DynamoDB API error rates were elevated from 11:48 PM to 2:40 AM, and DynamoDB global table replicas experienced prolonged replication lag to and from us-east-1. New EC2 instance launches failed from 2:25 AM to 10:36 AM, with some newly launched instances lacking connectivity until 1:50 PM, and Network Load Balancer experienced increased connection errors from 5:30 AM to 2:09 PM. Dependent services including Lambda, ECS/EKS/Fargate, STS, IAM sign-in to the console, Amazon Connect, and Redshift were also impaired for periods ranging from roughly two hours to over a day.",
+  "action_items": [
+    {
+      "action": "Fix the DNS Enactor race condition by enforcing that a plan can only be applied if it is newer than the currently active plan, verified atomically at the time of the Route53 transaction rather than with a one-time check before apply begins",
+      "owner_role": "DynamoDB team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Change the plan clean-up process so it never deletes the currently active plan or any plan that a delayed Enactor could still apply, and add a guard that refuses to leave an endpoint with an empty DNS record",
+      "owner_role": "DynamoDB team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Add automated detection and repair for empty or missing DNS records on DynamoDB regional endpoints, with alerting that pages on-call when the active plan is absent and the Enactors cannot make progress",
+      "owner_role": "DynamoDB team",
+      "type": "detect",
+      "priority": "high"
+    },
+    {
+      "action": "Document and rehearse a runbook for recovering DynamoDB DNS state manually, including how to restore the active plan and resume Enactor operation, so recovery does not depend on ad hoc operator decisions",
+      "owner_role": "On-call engineer",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Reduce dependency of EC2 DWFM state checks on DynamoDB, or provide a cached or degraded-mode lease mechanism so existing droplet leases are not lost during a DynamoDB outage",
+      "owner_role": "EC2 team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Create a documented, tested procedure for re-establishing DWFM leases across the fleet after a large-scale lease loss, including staged throttling, queue-drain limits, and controlled host restarts",
+      "owner_role": "EC2 team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Make the NLB health check subsystem wait for Network Manager propagation confirmation before bringing newly launched EC2 instances into service",
+      "owner_role": "Networking team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Add rate limiting or circuit breaking to automatic AZ DNS failover in NLB so that a degraded health check subsystem cannot remove multi-AZ capacity from service",
+      "owner_role": "Networking team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Add monitoring for Network Manager propagation backlog and for oscillating NLB health check results, with alerts that fire before capacity is removed from service",
+      "owner_role": "Networking team",
+      "type": "detect",
+      "priority": "medium"
+    },
+    {
+      "action": "Ensure Lambda's SQS-polling subsystem and instance scaling recover automatically after upstream dependency failures, and prevent health-check-driven instance termination from under-scaling the fleet during recovery",
+      "owner_role": "Lambda team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Remove the dependency of Redshift IAM user credential resolution on an IAM API endpoint in us-east-1 so that cross-Region query paths do not fail due to a single-Region outage",
+      "owner_role": "Redshift team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Remove the dependency of AWS Management Console sign-in and STS on DynamoDB and NLB in us-east-1, or provide a regional fallback path for IAM authentication",
+      "owner_role": "IAM team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Fix the AWS Support Center account metadata subsystem so that a regional failover returns valid responses rather than blocking legitimate users",
+      "owner_role": "AWS Support engineering team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Review DNS TTL settings for DynamoDB endpoints and document expected client-visible recovery time, so customers can plan for cached record expiry after a DNS incident",
+      "owner_role": "DynamoDB team",
+      "type": "mitigate",
+      "priority": "low"
+    },
+    {
+      "action": "Improve incident triage by adding a runbook entry and dashboard panel that surfaces DynamoDB DNS state as a first check when multiple services report DynamoDB connection failures simultaneously",
+      "owner_role": "On-call engineer",
+      "type": "detect",
+      "priority": "medium"
+    }
+  ]
+}

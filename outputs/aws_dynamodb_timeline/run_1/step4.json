@@ -1,0 +1,195 @@
+{
+  "factor_verdicts": [
+    {
+      "id": 1,
+      "verdict": "keep",
+      "reason": "Report states the one-time check ran only before applying, and the delayed Enactor overwrote a newer plan; this is the core trigger.",
+      "new_wording": "Race condition between DNS Enactors: a delayed Enactor applied an older plan after a newer plan had already been applied, overwriting it, because the check that its plan was newer ran only once before application began, not at each Route53 write. Contributing conditions: that Enactor experienced unusually high delays and retries while the Planner continued producing many newer plan generations, widening the window for an out-of-order apply."
+    },
+    {
+      "id": 2,
+      "verdict": "keep",
+      "reason": "Clean-up deleted the plan the regional endpoint was using, emptying the DNS record and leaving the system unable to apply updates."
+    },
+    {
+      "id": 3,
+      "verdict": "keep",
+      "reason": "Report states automation did not repair the record and manual intervention was required, prolonging the outage."
+    },
+    {
+      "id": 4,
+      "verdict": "merge with #1",
+      "reason": "Delayed Enactor plus Planner producing newer plans is the precondition of the same stale-plan race described in #1."
+    },
+    {
+      "id": 5,
+      "verdict": "keep",
+      "reason": "Report shows DWFM state checks failed due to DynamoDB dependency and leases timed out, cascading the failure into EC2."
+    },
+    {
+      "id": 6,
+      "verdict": "keep",
+      "reason": "Report states there was no recovery procedure and DWFM could not make forward progress until throttling and restarts at 4:14 AM.",
+      "new_wording": "No established operational recovery procedure existed for DWFM lease re-establishment at fleet scale, so lease work timed out and queued retries prevented forward progress until throttling and selective host restarts were applied."
+    },
+    {
+      "id": 7,
+      "verdict": "keep",
+      "reason": "Report directly states health checks failed on healthy targets because instances entered service before network state propagated, removing capacity."
+    },
+    {
+      "id": 8,
+      "verdict": "keep",
+      "reason": "Report shows health check degradation triggered automatic AZ failover that removed capacity until it was disabled at 9:36 AM."
+    },
+    {
+      "id": 9,
+      "verdict": "keep",
+      "reason": "Report shows Lambda, STS, Connect and others impaired by DynamoDB, EC2 launch and NLB issues, widening impact."
+    },
+    {
+      "id": 10,
+      "verdict": "remove",
+      "reason": "Redshift's IAM user-group resolution dependency on us-east-1 is a real but separate, service-specific issue; it spread impact only to Redshift and is covered in the broader dependency factor #9 (it did not cause or prolong the core failure chain). Evidence is valid, but it duplicates the cross-region dependency theme better captured by #9 and is addressed by action items there."
+    },
+    {
+      "id": 11,
+      "verdict": "remove",
+      "reason": "Report says failover worked as designed; the claim that failover paths had untested dependencies is speculation, as the report does not say testing was lacking."
+    }
+  ],
+  "factors": [
+    {
+      "factor": "Race condition between DNS Enactors: a delayed Enactor applied an older plan after a newer plan had already been applied, overwriting it, because the check that its plan was newer ran only once before application began, not at each Route53 write. Contributing conditions: that Enactor experienced unusually high delays and retries while the Planner continued producing many newer plan generations, widening the window for an out-of-order apply.",
+      "evidence": "\"Before it begins to apply a new plan, the Enactor makes a one-time check that its plan is newer than the previously applied plan.\" and \"the first (delayed) Enactor applied its much older plan to the regional DynamoDB endpoint, overwriting the newer plan.\" | \"Right before the event, one DNS Enactor experienced unusually high delays and needed to retry its update on several DNS endpoints. While it was slowly working through the endpoints, the DNS Planner continued to run and produced many newer generations of plans.\""
+    },
+    {
+      "factor": "Plan clean-up process deleted the active plan, leaving the regional DNS record empty and no Enactor able to apply subsequent updates.",
+      "evidence": "\"The second Enactor's clean-up process then deleted this older plan because it was many generations older than the plan it had just applied. As this plan was deleted, all IP addresses for the regional endpoint were immediately removed, leaving an empty DNS record.\""
+    },
+    {
+      "factor": "Automation lacked a self-repair path for the empty-record inconsistent state, so recovery depended on manual operator intervention, prolonging the DynamoDB outage.",
+      "evidence": "\"The automation did not repair the record. Manual operator intervention was required.\""
+    },
+    {
+      "factor": "Hard dependency of EC2 droplet lease management (DWFM) on DynamoDB, so the DynamoDB DNS failure cascaded into EC2 state checks and lease expiry.",
+      "evidence": "\"DWFM state checks began to fail, because the process depends on DynamoDB.\" and \"Between 11:48 PM and 2:24 AM, leases between DWFM and droplets slowly timed out.\""
+    },
+    {
+      "factor": "No established operational recovery procedure existed for DWFM lease re-establishment at fleet scale, so lease work timed out and queued retries prevented forward progress until throttling and selective host restarts were applied.",
+      "evidence": "\"There was no established operational recovery procedure for this situation, and engineers took care not to cause further issues while attempting multiple mitigation steps.\" and \"DWFM was unable to make forward progress in recovering leases.\""
+    },
+    {
+      "factor": "Health check subsystem brought new EC2 instances into service before network state had propagated, causing alternating health check failures and removal of healthy capacity from DNS.",
+      "evidence": "\"the health check subsystem brought new EC2 instances into service before their network state had fully propagated, so health checks failed even when NLB nodes and targets were healthy.\""
+    },
+    {
+      "factor": "Degraded health check subsystem triggered automatic AZ DNS failover, removing capacity from multi-AZ load balancers and causing connection errors; the automatic failover had to be disabled manually.",
+      "evidence": "\"The alternating results increased load on the health check subsystem, which degraded, delayed health checks and triggered automatic AZ DNS failover.\" and \"Engineers disabled automatic health check failover for NLB\""
+    },
+    {
+      "factor": "Cross-service dependency on EC2 and NLB: Lambda, Redshift, STS, Connect and others were impaired by DynamoDB, EC2 launch, or NLB issues, widening the blast radius.",
+      "evidence": "\"Clusters needing host replacement were blocked because EC2 launches were impaired.\" and \"From 7:04 AM, NLB health check failures triggered instance terminations, leaving Lambda internal systems under-scaled\""
+    }
+  ],
+  "action_items": [
+    {
+      "action": "Modify the DNS Enactor so every Route53 transaction verifies that the plan being written is newer than the currently applied plan, not only a one-time check before application begins.",
+      "owner_role": "DNS/Route53 automation team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Change the plan clean-up process so it never deletes the currently active plan or any plan that a live endpoint depends on, regardless of generation age.",
+      "owner_role": "DNS/Route53 automation team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Add automated detection and self-repair for the empty-DNS-record inconsistent state so the system recovers without manual operator intervention.",
+      "owner_role": "DNS/Route53 automation team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Add alarms on regional DynamoDB endpoint record count and on Enactor apply latency or retry counts, alerting on-call before DNS records become empty.",
+      "owner_role": "DynamoDB team with SRE/observability team",
+      "type": "detect",
+      "priority": "high"
+    },
+    {
+      "action": "Reduce the EC2 DWFM dependency on DynamoDB so lease state checks can continue or degrade gracefully during DynamoDB endpoint failures.",
+      "owner_role": "EC2 control plane team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Develop and rehearse a documented, staged recovery runbook for DWFM lease re-establishment at full fleet scale, including throttling and selective host restart procedures.",
+      "owner_role": "EC2 control plane team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Gate health check subsystem admission of newly launched EC2 instances on confirmed network state propagation before they are added to NLB service.",
+      "owner_role": "NLB/Networking team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Add safeguards so health check degradation cannot trigger automatic AZ DNS failover that removes large amounts of capacity, with a manual override that is tested in advance.",
+      "owner_role": "NLB/Networking team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Remove the cross-region dependency of Redshift IAM user-group resolution on an IAM API in us-east-1 by making it regionally local or cached.",
+      "owner_role": "Redshift team with IAM team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Audit critical services for hard dependencies on us-east-1 control-plane components (including EC2 launches and DynamoDB) and define cell-based or static-stability fallbacks for them.",
+      "owner_role": "Service reliability / architecture review board",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Add a Lambda throttling and scaling safeguard so that loss of capacity in the underlying compute layer does not leave internal systems under-scaled after health check failures.",
+      "owner_role": "Lambda team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Ensure Lambda's SQS-polling internal subsystem automatically recovers after dependency failures instead of requiring manual restoration.",
+      "owner_role": "Lambda team",
+      "type": "mitigate",
+      "priority": "medium"
+    }
+  ],
+  "changes": [
+    {
+      "change": "Reworded #1: Race condition between DNS Enactors: a delayed Enactor applied an older plan after a newer plan had already been applied, overwriting it, because the check that its plan was newer ran only once before application began, not at each Route53 write. Contributing conditions: that Enactor experienced unusually high delays and retries while the Planner continued producing many newer plan generations, widening the window for an out-of-order apply.",
+      "reason": "Report states the one-time check ran only before applying, and the delayed Enactor overwrote a newer plan; this is the core trigger."
+    },
+    {
+      "change": "Merged #4 into #1: Failure of the DNS Enactor (delayed retries) combined with the Planner continuing to generate many newer plans, increasing the chance of a stale plan being applied out of order.",
+      "reason": "Delayed Enactor plus Planner producing newer plans is the precondition of the same stale-plan race described in #1."
+    },
+    {
+      "change": "Reworded #6: No established operational recovery procedure existed for DWFM lease re-establishment at fleet scale, so lease work timed out and queued retries prevented forward progress until throttling and selective host restarts were applied.",
+      "reason": "Report states there was no recovery procedure and DWFM could not make forward progress until throttling and restarts at 4:14 AM."
+    },
+    {
+      "change": "Removed #10: Redshift relied on an IAM API in us-east-1 to resolve user groups, spreading the regional failure to Redshift customers in all Regions.",
+      "reason": "Redshift's IAM user-group resolution dependency on us-east-1 is a real but separate, service-specific issue; it spread impact only to Redshift and is covered in the broader dependency factor #9 (it did not cause or prolong the core failure chain). Evidence is valid, but it duplicates the cross-region dependency theme better captured by #9 and is addressed by action items there."
+    },
+    {
+      "change": "Removed #11: Support Center regional failover worked as designed, but an account metadata subsystem returned invalid responses, showing that failover paths had untested dependencies.",
+      "reason": "Report says failover worked as designed; the claim that failover paths had untested dependencies is speculation, as the report does not say testing was lacking."
+    },
+    {
+      "change": "Removed action item 'Add testing of failover paths, including the account metadata subsystem used by the Support Center...'",
+      "reason": "It only addressed factor #11, which was removed as speculative."
+    }
+  ]
+}

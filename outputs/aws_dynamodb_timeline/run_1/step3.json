@@ -1,0 +1,83 @@
+{
+  "impact_summary": "Amazon DynamoDB in the us-east-1 Region experienced increased API error rates from 11:48 PM Oct 19 to 2:40 AM Oct 20 (PDT) after the regional DNS record was left empty, and global table replicas in us-east-1 saw prolonged replication lag until 2:32 AM. Subsequent impairment of EC2 instance launches (2:25 AM to 1:50 PM Oct 20) and Network Load Balancer connection errors (5:30 AM to 2:09 PM Oct 20) extended the disruption, and dependent services including Lambda, ECS/EKS/Fargate, Redshift, STS, Amazon Connect, the AWS Management Console and the Support Center experienced errors for periods ranging from roughly two hours to over a day, with some Redshift clusters affected until 4:05 AM Oct 21.",
+  "action_items": [
+    {
+      "action": "Modify the DNS Enactor so every Route53 transaction verifies that the plan being written is newer than the currently applied plan, not only a one-time check before application begins.",
+      "owner_role": "DNS/Route53 automation team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Change the plan clean-up process so it never deletes the currently active plan or any plan that a live endpoint depends on, regardless of generation age.",
+      "owner_role": "DNS/Route53 automation team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Add automated detection and self-repair for the empty-DNS-record inconsistent state so the system recovers without manual operator intervention.",
+      "owner_role": "DNS/Route53 automation team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Add alarms on regional DynamoDB endpoint record count and on Enactor apply latency or retry counts, alerting on-call before DNS records become empty.",
+      "owner_role": "DynamoDB team with SRE/observability team",
+      "type": "detect",
+      "priority": "high"
+    },
+    {
+      "action": "Reduce the EC2 DWFM dependency on DynamoDB so lease state checks can continue or degrade gracefully during DynamoDB endpoint failures.",
+      "owner_role": "EC2 control plane team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Develop and rehearse a documented, staged recovery runbook for DWFM lease re-establishment at full fleet scale, including throttling and selective host restart procedures.",
+      "owner_role": "EC2 control plane team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Gate health check subsystem admission of newly launched EC2 instances on confirmed network state propagation before they are added to NLB service.",
+      "owner_role": "NLB/Networking team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Add safeguards so health check degradation cannot trigger automatic AZ DNS failover that removes large amounts of capacity, with a manual override that is tested in advance.",
+      "owner_role": "NLB/Networking team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Remove the cross-region dependency of Redshift IAM user-group resolution on an IAM API in us-east-1 by making it regionally local or cached.",
+      "owner_role": "Redshift team with IAM team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Audit critical services for hard dependencies on us-east-1 control-plane components (including EC2 launches and DynamoDB) and define cell-based or static-stability fallbacks for them.",
+      "owner_role": "Service reliability / architecture review board",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Add testing of failover paths, including the account metadata subsystem used by the Support Center, to verify that cross-region failover returns valid responses.",
+      "owner_role": "AWS Support Center engineering team",
+      "type": "detect",
+      "priority": "medium"
+    },
+    {
+      "action": "Add a Lambda throttling and scaling safeguard so that loss of capacity in the underlying compute layer does not leave internal systems under-scaled after health check failures.",
+      "owner_role": "Lambda team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Ensure Lambda's SQS-polling internal subsystem automatically recovers after dependency failures instead of requiring manual restoration.",
+      "owner_role": "Lambda team",
+      "type": "mitigate",
+      "priority": "medium"
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "factors": [
+    {
+      "factor": "Race condition between two DNS Enactors: a delayed Enactor applied an older plan that overwrote a newer one, and the clean-up process of the other Enactor then deleted that older plan, leaving the regional endpoint with an empty DNS record",
+      "evidence": "\"the first (delayed) Enactor applied its much older plan to the regional DynamoDB endpoint, overwriting the newer plan. The second Enactor's clean-up process then deleted this older plan... As this plan was deleted, all IP addresses for the regional endpoint were immediately removed, leaving an empty DNS record.\""
+    },
+    {
+      "factor": "The one-time plan-age check performed before applying a plan did not guard against a delayed Enactor overwriting a newer plan, allowing stale state to be written",
+      "evidence": "\"Before it begins to apply a new plan, the Enactor makes a one-time check that its plan is newer than the previously applied plan.\""
+    },
+    {
+      "factor": "Automation did not detect or repair the empty DNS record, and the system was left in a state where no Enactor could apply further updates, requiring manual intervention",
+      "evidence": "\"Because the active plan was deleted, the system was left in an inconsistent state in which no DNS Enactor could apply subsequent plan updates. The automation did not repair the record. Manual operator intervention was required.\""
+    },
+    {
+      "factor": "Strong dependency of core AWS control-plane services (EC2 DWFM, Lambda, STS, IAM sign-in, Redshift, Connect) on DynamoDB in us-east-1 meant a DynamoDB DNS failure cascaded across many services",
+      "evidence": "\"DWFM state checks began to fail, because the process depends on DynamoDB\"; \"AWS Management Console sign-in began experiencing IAM user authentication failures due to DynamoDB issues\"; \"Redshift used an IAM API in us-east-1 to resolve user groups\""
+    },
+    {
+      "factor": "No established operational recovery procedure for DWFM lease re-establishment after DNS restoration, causing prolonged EC2 launch failures",
+      "evidence": "\"There was no established operational recovery procedure for this situation, and engineers took care not to cause further issues while attempting multiple mitigation steps.\""
+    },
+    {
+      "factor": "Lease re-establishment at fleet scale timed out and queued retries without making forward progress, requiring manual throttling and host restarts",
+      "evidence": "\"Because of the large number of droplets, establishing new leases took long enough that the work timed out before it completed. Additional work was queued to retry, and DWFM was unable to make forward progress\""
+    },
+    {
+      "factor": "Network Manager backlog from the EC2 recovery delayed network propagation, so new instances launched without connectivity",
+      "evidence": "\"Network Manager began propagating network configurations to newly launched instances, with a significant backlog from the delay.\"; \"New instances could launch but lacked network connectivity.\""
+    },
+    {
+      "factor": "NLB health check subsystem did not account for propagation delay, marking healthy nodes as failing and removing them from DNS in an oscillating pattern",
+      "evidence": "\"the health check subsystem brought new EC2 instances into service before their network state had fully propagated, so health checks failed even when NLB nodes and targets were healthy. Health checks alternated between failing and healthy\""
+    },
+    {
+      "factor": "Automatic AZ DNS failover in NLB amplified the impact: the degraded health check subsystem triggered failover that removed multi-AZ capacity from service",
+      "evidence": "\"The alternating results increased load on the health check subsystem, which degraded, delayed health checks and triggered automatic AZ DNS failover. For multi-AZ load balancers, this took capacity out of service\""
+    },
+    {
+      "factor": "Dependency of Lambda and STS on NLB and EC2 extended impact beyond DynamoDB recovery, with Lambda under-scaled after instance terminations triggered by health check failures",
+      "evidence": "\"From 7:04 AM, NLB health check failures triggered instance terminations, leaving Lambda internal systems under-scaled\"; \"STS (11:51 PM - 9:59 AM): API errors... due to NLB health check failures\""
+    },
+    {
+      "factor": "Lambda's internal SQS-polling subsystem did not recover automatically after the DynamoDB disruption",
+      "evidence": "\"An internal subsystem polling SQS queues failed and did not recover automatically; it was restored at 4:40 AM.\""
+    },
+    {
+      "factor": "Cached DNS records prolonged customer-visible impact after the underlying DNS state was restored",
+      "evidence": "\"Customers could resolve the DynamoDB endpoint and connect as cached DNS records expired.\""
+    },
+    {
+      "factor": "Global table replication lag and cross-region dependencies, including Redshift's use of an IAM API in us-east-1 for all Regions, spread the impact beyond us-east-1",
+      "evidence": "\"Customers with DynamoDB global tables... saw prolonged replication lag to and from us-east-1\"; \"Redshift customers in all Regions could not use IAM user credentials for queries, because Redshift used an IAM API in us-east-1\""
+    },
+    {
+      "factor": "Engineering effort to identify the root cause took a significant time, with the DynamoDB DNS state identified nearly an hour after impact began",
+      "evidence": "\"11:48 PM All systems connecting to DynamoDB in us-east-1 via the public endpoint began experiencing DNS failures... 12:38 AM Engineers identified DynamoDB's DNS state as the source of the outage.\""
+    }
+  ]
+}

@@ -1,0 +1,205 @@
+{
+  "factor_verdicts": [
+    {
+      "id": 1,
+      "verdict": "keep",
+      "reason": "The delayed Enactor overwriting a newer plan with an older one is a direct, well-evidenced trigger of the outage; the one-time pre-apply check was the gap that allowed it."
+    },
+    {
+      "id": 2,
+      "verdict": "keep",
+      "reason": "Clean-up deleting the plan that had become active directly produced the empty DNS record, as stated in the report."
+    },
+    {
+      "id": 3,
+      "verdict": "keep",
+      "reason": "Automation did not repair the empty or inconsistent state and manual intervention was required, which prolonged recovery; evidence is explicit."
+    },
+    {
+      "id": 4,
+      "verdict": "keep",
+      "reason": "EC2 DWFM and other services depending on DynamoDB in us-east-1 spread the impact; evidence supports it. Cross-region dependencies from #12 are folded in here.",
+      "new_wording": "Services in us-east-1 and other Regions had hard dependencies on DynamoDB and other us-east-1 components (e.g., DWFM state checks, Redshift's IAM API call for user group resolution, and the Support Center account metadata subsystem), so the DynamoDB failure cascaded widely and spread impact beyond the Region."
+    },
+    {
+      "id": 5,
+      "verdict": "keep",
+      "reason": "Report states there was no established recovery procedure for DWFM lease recovery and engineers proceeded cautiously through multiple mitigation steps, slowing recovery."
+    },
+    {
+      "id": 6,
+      "verdict": "keep",
+      "reason": "Lease re-establishment timing out and queuing retries without forward progress is clearly stated and delayed EC2 launch recovery."
+    },
+    {
+      "id": 7,
+      "verdict": "keep",
+      "reason": "Health checks marking instances unhealthy before network state propagated is explicitly described and caused capacity removal."
+    },
+    {
+      "id": 8,
+      "verdict": "keep",
+      "reason": "Alternating results overloading the health check subsystem and triggering automatic AZ failover that removed capacity is explicitly described."
+    },
+    {
+      "id": 9,
+      "verdict": "keep",
+      "reason": "Network Manager backlog slowed propagation, leaving new instances without connectivity until 10:36 AM, per the report."
+    },
+    {
+      "id": 10,
+      "verdict": "remove",
+      "reason": "Throttling and host restarts were recovery actions that cleared queues and limited damage; the throttling side effects are a minor trade-off, not a cause of the failure or delay."
+    },
+    {
+      "id": 11,
+      "verdict": "remove",
+      "reason": "Cached DNS expiry was a normal recovery step within 2:25-2:40 AM, and global table lag was caught up by 2:32 AM, which is not clearly prolonged impact; evidence does not support the claim and global tables limited damage."
+    },
+    {
+      "id": 12,
+      "verdict": "merge with #4",
+      "reason": "Same underlying issue as #4: services with hard dependencies on us-east-1/DynamoDB spreading impact."
+    }
+  ],
+  "factors": [
+    {
+      "factor": "Race condition between DNS Enactors: a delayed Enactor applied an older plan after a newer plan had already been applied, overwriting it",
+      "evidence": "\"the first (delayed) Enactor applied its much older plan to the regional DynamoDB endpoint, overwriting the newer plan.\""
+    },
+    {
+      "factor": "Plan clean-up process deleted the active plan, leaving the regional DNS record empty",
+      "evidence": "\"The second Enactor's clean-up process then deleted this older plan because it was many generations older than the plan it had just applied. As this plan was deleted, all IP addresses for the regional endpoint were immediately removed, leaving an empty DNS record.\""
+    },
+    {
+      "factor": "Automation lacked safeguards to detect and repair an empty DNS record or an inconsistent state, requiring manual intervention",
+      "evidence": "\"Because the active plan was deleted, the system was left in an inconsistent state in which no DNS Enactor could apply subsequent plan updates. The automation did not repair the record. Manual operator intervention was required.\""
+    },
+    {
+      "factor": "Services in us-east-1 and other Regions had hard dependencies on DynamoDB and other us-east-1 components (e.g., DWFM state checks, Redshift's IAM API call for user group resolution, and the Support Center account metadata subsystem), so the DynamoDB failure cascaded widely and spread impact beyond the Region.",
+      "evidence": "\"EC2 launches depend on two subsystems... DropletWorkflow Manager (DWFM)... DWFM state checks began to fail, because the process depends on DynamoDB.\" and \"Redshift used an IAM API in us-east-1 to resolve user groups.\" | \"Redshift customers in all Regions could not use IAM user credentials for queries, because Redshift used an IAM API in us-east-1 to resolve user groups.\" and \"an account metadata subsystem returned invalid responses that blocked legitimate users.\""
+    },
+    {
+      "factor": "No established operational recovery procedure for DWFM lease re-establishment after DynamoDB recovery, prolonging EC2 launch failures",
+      "evidence": "\"There was no established operational recovery procedure for this situation, and engineers took care not to cause further issues while attempting multiple mitigation steps.\""
+    },
+    {
+      "factor": "DWFM lease re-establishment at fleet scale timed out and queued retries without forward progress",
+      "evidence": "\"Because of the large number of droplets, establishing new leases took long enough that the work timed out before it completed. Additional work was queued to retry, and DWFM was unable to make forward progress in recovering leases.\""
+    },
+    {
+      "factor": "Network Load Balancer health checks marked new instances unhealthy before network state propagated, causing alternating health results and removal of capacity",
+      "evidence": "\"the health check subsystem brought new EC2 instances into service before their network state had fully propagated, so health checks failed even when NLB nodes and targets were healthy. Health checks alternated between failing and healthy\""
+    },
+    {
+      "factor": "Automatic health check failover amplified load on the health check subsystem, removing capacity from service",
+      "evidence": "\"The alternating results increased load on the health check subsystem, which degraded, delayed health checks and triggered automatic AZ DNS failover.\""
+    },
+    {
+      "factor": "Network Manager backlog from the delayed EC2 recovery slowed propagation of network configuration to new instances",
+      "evidence": "\"Network Manager began propagating network configurations to newly launched instances, with a significant backlog from the delay.\""
+    }
+  ],
+  "action_items": [
+    {
+      "action": "Add a fix so that a DNS Enactor cannot apply a plan older than the currently active plan, enforcing plan generation ordering atomically at the Route53 transaction level rather than relying on a one-time pre-apply check.",
+      "owner_role": "DynamoDB DNS automation team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Change the plan clean-up process so it never deletes the currently active plan or any plan that could still be referenced, and add a guard that refuses clean-up when the regional endpoint record would become empty.",
+      "owner_role": "DynamoDB DNS automation team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Implement automated detection and self-repair for an empty or inconsistent regional DNS record, including an alarm that pages on-call when any endpoint has zero healthy IP addresses.",
+      "owner_role": "DynamoDB DNS automation team",
+      "type": "detect",
+      "priority": "high"
+    },
+    {
+      "action": "Write and rehearse a runbook for restoring the DynamoDB regional DNS state and re-enabling DNS Enactors, so manual recovery does not depend on ad hoc operator decisions.",
+      "owner_role": "DynamoDB DNS automation team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Create a documented operational recovery procedure for DWFM lease re-establishment after a dependency outage, including fleet-scale staged lease recovery and throttling guidance.",
+      "owner_role": "EC2 compute infrastructure team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Make DWFM lease re-establishment resilient to fleet-scale timeouts by batching work, applying exponential backoff, and ensuring retries make forward progress rather than accumulating queued duplicates.",
+      "owner_role": "EC2 compute infrastructure team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Reduce EC2 control-plane dependency on DynamoDB in us-east-1 by caching droplet state or adding a fallback path so that a DynamoDB outage does not cause lease expiry across the fleet.",
+      "owner_role": "EC2 compute infrastructure team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Gate NLB health check admission of new EC2 instances until network configuration propagation is confirmed, so instances are not marked unhealthy and removed from DNS due to propagation lag.",
+      "owner_role": "Networking (NLB) team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Add rate limiting and circuit breaking to the NLB health check subsystem so that alternating health results cannot overload health checks and trigger cascading automatic AZ failover.",
+      "owner_role": "Networking (NLB) team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Add alarms on Network Manager propagation backlog and latency so backlog growth is detected and acted on before new instances fail to get connectivity.",
+      "owner_role": "Networking (EC2 Network Manager) team",
+      "type": "detect",
+      "priority": "medium"
+    },
+    {
+      "action": "Audit services in other Regions (for example Redshift IAM user group resolution and Support Center account metadata) for hard dependencies on us-east-1 and add regional fallbacks or cached credential resolution.",
+      "owner_role": "Cross-service reliability review team",
+      "type": "prevent",
+      "priority": "medium"
+    }
+  ],
+  "changes": [
+    {
+      "change": "Reworded #4: Services in us-east-1 and other Regions had hard dependencies on DynamoDB and other us-east-1 components (e.g., DWFM state checks, Redshift's IAM API call for user group resolution, and the Support Center account metadata subsystem), so the DynamoDB failure cascaded widely and spread impact beyond the Region.",
+      "reason": "EC2 DWFM and other services depending on DynamoDB in us-east-1 spread the impact; evidence supports it. Cross-region dependencies from #12 are folded in here."
+    },
+    {
+      "change": "Removed #10: Recovery actions such as request throttling and host restarts were needed to clear queues, and throttling caused secondary errors",
+      "reason": "Throttling and host restarts were recovery actions that cleared queues and limited damage; the throttling side effects are a minor trade-off, not a cause of the failure or delay."
+    },
+    {
+      "change": "Removed #11: Cached DNS records and global table replication lag prolonged customer-visible impact after the DNS fix",
+      "reason": "Cached DNS expiry was a normal recovery step within 2:25-2:40 AM, and global table lag was caught up by 2:32 AM, which is not clearly prolonged impact; evidence does not support the claim and global tables limited damage."
+    },
+    {
+      "change": "Merged #12 into #4: Dependent services had cross-region or shared dependencies that spread the impact beyond us-east-1 (e.g., Redshift IAM credential resolution and Support Center metadata)",
+      "reason": "Same underlying issue as #4: services with hard dependencies on us-east-1/DynamoDB spreading impact."
+    },
+    {
+      "change": "Changed owner_role of the DynamoDB DNS recovery runbook item from 'On-call engineer' to 'DynamoDB DNS automation team'.",
+      "reason": "On-call engineer is a rotating individual duty, not a team accountable for authoring and rehearsing a runbook; the owning team is the appropriate owner."
+    },
+    {
+      "change": "Removed the action item on scheduled restart procedure for Lambda SQS polling subsystems and prioritizing synchronous invocations.",
+      "reason": "It addresses no retained contributing factor; Lambda issues were downstream effects, and prioritizing synchronous invocations was a recovery step that limited damage."
+    },
+    {
+      "change": "Removed the action item on reducing DNS TTLs / cache invalidation guidance for DynamoDB endpoints.",
+      "reason": "It only addressed factor #11, which was removed; cache expiry completed within 15 minutes of the DNS fix and no evidence shows it prolonged impact."
+    },
+    {
+      "change": "Removed the action item on customer-facing status communication and per-service dashboards.",
+      "reason": "It addresses no contributing factor in the report; communication was not identified as a cause of the failure or slower recovery."
+    }
+  ]
+}

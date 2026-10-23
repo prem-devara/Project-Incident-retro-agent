@@ -1,0 +1,54 @@
+Amazon DynamoDB service disruption, Northern Virginia (us-east-1) Region, October 19-20, 2025 (all times PDT)
+
+Overview
+The event started at 11:48 PM on October 19 and ended at 2:20 PM on October 20, with three distinct periods of impact to customer applications:
+- 11:48 PM Oct 19 to 2:40 AM Oct 20: Amazon DynamoDB experienced increased API error rates.
+- 2:25 AM to 10:36 AM Oct 20: new EC2 instance launches failed; launches began to succeed from 10:37 AM, but some newly launched instances had connectivity issues until 1:50 PM.
+- 5:30 AM to 2:09 PM Oct 20: Network Load Balancer (NLB) experienced increased connection errors for some load balancers.
+
+System setup: DynamoDB DNS management
+Many of the largest AWS services rely extensively on DNS for scale, fault isolation and recovery, low latency, and locality. DynamoDB maintains hundreds of thousands of DNS records for a very large fleet of load balancers in each Region. Automation updates these DNS records frequently to add capacity, handle hardware failures, and distribute traffic. Besides the public regional endpoint (dynamodb.us-east-1.amazonaws.com), the automation maintains DNS endpoints for a FIPS endpoint, an IPv6 endpoint, and account-specific endpoints.
+
+The system has two independent components. The DNS Planner monitors the health and capacity of the load balancers and periodically creates a new DNS plan for each endpoint, consisting of a set of load balancers and weights. A single regional DNS plan is produced, because capacity is shared across endpoints. The DNS Enactor applies DNS plans by making the required changes in Amazon Route53. For resiliency, the DNS Enactor runs redundantly and fully independently in three Availability Zones (AZs). Each Enactor looks for new plans and updates Route53 by replacing the current plan with a new plan using a Route53 transaction.
+
+Under normal operations, a DNS Enactor picks up the latest plan and works through the service endpoints to apply it. Before it begins to apply a new plan, the Enactor makes a one-time check that its plan is newer than the previously applied plan. If a transaction is blocked by another Enactor updating the same endpoint, the Enactor retries each endpoint until the plan is applied to all endpoints. After an Enactor finishes applying a plan, it runs a plan clean-up process that deletes plans significantly older than the one it just applied.
+
+October 19-20: DynamoDB
+Right before the event, one DNS Enactor experienced unusually high delays and needed to retry its update on several DNS endpoints. While it was slowly working through the endpoints, the DNS Planner continued to run and produced many newer generations of plans. A second DNS Enactor began applying one of the newer plans and rapidly progressed through all of the endpoints.
+
+When the second Enactor completed its updates, it invoked the plan clean-up process. At the same time, the first (delayed) Enactor applied its much older plan to the regional DynamoDB endpoint, overwriting the newer plan. The second Enactor's clean-up process then deleted this older plan because it was many generations older than the plan it had just applied. As this plan was deleted, all IP addresses for the regional endpoint were immediately removed, leaving an empty DNS record. Because the active plan was deleted, the system was left in an inconsistent state in which no DNS Enactor could apply subsequent plan updates. The automation did not repair the record. Manual operator intervention was required.
+
+11:48 PM All systems connecting to DynamoDB in us-east-1 via the public endpoint began experiencing DNS failures and failed to connect. This included customer traffic and internal AWS services that rely on DynamoDB. Customers with DynamoDB global tables could use replica tables in other Regions, but saw prolonged replication lag to and from us-east-1. Engineering teams for impacted AWS services were engaged and began to investigate.
+12:38 AM Engineers identified DynamoDB's DNS state as the source of the outage.
+1:15 AM Temporary mitigations enabled some internal services to connect to DynamoDB and repaired key internal tooling, unblocking further recovery.
+2:25 AM All DNS information was restored.
+2:32 AM All global table replicas were fully caught up.
+2:25-2:40 AM Customers could resolve the DynamoDB endpoint and connect as cached DNS records expired.
+
+Amazon EC2
+Existing EC2 instances remained healthy throughout. EC2 launches depend on two subsystems. DropletWorkflow Manager (DWFM) manages the physical servers ("droplets") that host EC2 instances and maintains a lease for each droplet; each DWFM host must check in and complete a state check with each droplet every few minutes. Network Manager propagates network configuration to newly launched instances.
+
+11:48 PM DWFM state checks began to fail, because the process depends on DynamoDB. Droplets would need a new lease before further instance state changes could happen. Between 11:48 PM and 2:24 AM, leases between DWFM and droplets slowly timed out.
+2:25 AM With DynamoDB recovered, DWFM began re-establishing leases across the EC2 fleet. Droplets without an active lease are not candidates for new launches, so EC2 APIs returned "insufficient capacity" errors. Because of the large number of droplets, establishing new leases took long enough that the work timed out before it completed. Additional work was queued to retry, and DWFM was unable to make forward progress in recovering leases. There was no established operational recovery procedure for this situation, and engineers took care not to cause further issues while attempting multiple mitigation steps.
+4:14 AM Engineers throttled incoming work and began selective restarts of DWFM hosts, which cleared the queues and allowed leases to be established.
+5:28 AM DWFM had established leases with all droplets in us-east-1. New launches started to succeed, though many requests saw "request limit exceeded" errors due to the throttling.
+5:28 AM Network Manager began propagating network configurations to newly launched instances, with a significant backlog from the delay.
+6:21 AM Network Manager latencies increased as it worked through the backlog. New instances could launch but lacked network connectivity. Engineers worked to reduce load on Network Manager.
+10:36 AM Network propagation times returned to normal and new launches operated normally.
+11:23 AM Engineers began relaxing request throttles.
+1:50 PM All EC2 APIs and new instance launches operating normally.
+
+Network Load Balancer (NLB)
+NLB routes traffic to backend targets, typically EC2 instances, and uses a separate health check subsystem that removes nodes considered unhealthy. During the event, the health check subsystem brought new EC2 instances into service before their network state had fully propagated, so health checks failed even when NLB nodes and targets were healthy. Health checks alternated between failing and healthy, so nodes and targets were removed from DNS and then returned on the next successful check.
+6:52 AM Monitoring detected this, and engineers began working to remediate. The alternating results increased load on the health check subsystem, which degraded, delayed health checks and triggered automatic AZ DNS failover. For multi-AZ load balancers, this took capacity out of service, and applications saw connection errors if remaining capacity was insufficient.
+9:36 AM Engineers disabled automatic health check failover for NLB, bringing all healthy nodes and targets back into service and resolving the connection errors.
+2:09 PM Automatic DNS health check failover was re-enabled after EC2 recovered.
+
+Other AWS services
+- Lambda (11:51 PM - 2:15 PM): DynamoDB endpoint issues prevented function creation and updates and caused invocation errors. An internal subsystem polling SQS queues failed and did not recover automatically; it was restored at 4:40 AM. From 7:04 AM, NLB health check failures triggered instance terminations, leaving Lambda internal systems under-scaled; with EC2 launches impaired, engineers throttled asynchronous work to prioritize synchronous invocations.
+- ECS, EKS and Fargate (11:45 PM - 2:20 PM): container launch failures and cluster scaling delays.
+- Amazon Connect (11:56 PM - 1:20 PM): elevated errors handling calls, chats and cases; a second period of errors from 7:04 AM due to NLB and Lambda impact.
+- STS (11:51 PM - 9:59 AM): API errors, recovered at 1:19 AM, then errors again 8:31-9:59 AM due to NLB health check failures.
+- AWS Management Console sign-in (11:51 PM - 1:25 AM): IAM user authentication failures due to DynamoDB issues.
+- Redshift (11:47 PM - 2:21 AM, some clusters until 4:05 AM Oct 21): query and cluster operations failed while DynamoDB endpoints were down. Clusters needing host replacement were blocked because EC2 launches were impaired. Separately, Redshift customers in all Regions could not use IAM user credentials for queries, because Redshift used an IAM API in us-east-1 to resolve user groups.
+- AWS Support Center (11:48 PM - 2:40 AM): it failed over to another region as designed, but an account metadata subsystem returned invalid responses that blocked legitimate users.

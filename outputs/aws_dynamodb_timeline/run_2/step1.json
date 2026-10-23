@@ -1,0 +1,124 @@
+{
+  "events": [
+    {
+      "time": "11:48 PM Oct 19 (PDT)",
+      "description": "All systems connecting to DynamoDB in us-east-1 via the public endpoint began experiencing DNS failures; the regional DNS record was empty after a race between DNS Enactors and clean-up deleted the active plan. Customer traffic and internal AWS services were affected, and global table replicas saw prolonged replication lag."
+    },
+    {
+      "time": "11:48 PM Oct 19 (PDT)",
+      "description": "DWFM state checks began to fail because the process depends on DynamoDB; droplet leases slowly timed out between 11:48 PM and 2:24 AM."
+    },
+    {
+      "time": "11:45 PM Oct 19 (PDT)",
+      "description": "ECS, EKS and Fargate began experiencing container launch failures and cluster scaling delays (through 2:20 PM)."
+    },
+    {
+      "time": "11:47 PM Oct 19 (PDT)",
+      "description": "Redshift query and cluster operations began failing while DynamoDB endpoints were down (through 2:21 AM Oct 20, some clusters until 4:05 AM Oct 21)."
+    },
+    {
+      "time": "11:48 PM Oct 19 (PDT)",
+      "description": "AWS Support Center began failing over to another region as designed (through 2:40 AM Oct 20)."
+    },
+    {
+      "time": "11:51 PM Oct 19 (PDT)",
+      "description": "Lambda began experiencing DynamoDB-related function creation, update, and invocation errors (through 2:15 PM Oct 20)."
+    },
+    {
+      "time": "11:51 PM Oct 19 (PDT)",
+      "description": "STS began experiencing API errors (through 9:59 AM Oct 20)."
+    },
+    {
+      "time": "11:51 PM Oct 19 (PDT)",
+      "description": "AWS Management Console sign-in began experiencing IAM user authentication failures (through 1:25 AM Oct 20)."
+    },
+    {
+      "time": "11:56 PM Oct 19 (PDT)",
+      "description": "Amazon Connect began experiencing elevated errors handling calls, chats and cases (through 1:20 PM Oct 20)."
+    },
+    {
+      "time": "12:38 AM Oct 20 (PDT)",
+      "description": "Engineers identified DynamoDB's DNS state as the source of the outage."
+    },
+    {
+      "time": "1:15 AM Oct 20 (PDT)",
+      "description": "Temporary mitigations enabled some internal services to connect to DynamoDB and repaired key internal tooling."
+    },
+    {
+      "time": "2:20 AM Oct 20 (PDT)",
+      "description": "Lambda's internal subsystem polling SQS queues failed and did not recover automatically (restored at 4:40 AM)."
+    },
+    {
+      "time": "2:25 AM Oct 20 (PDT)",
+      "description": "All DNS information for DynamoDB was restored; customers could resolve the endpoint as cached DNS records expired (2:25-2:40 AM)."
+    },
+    {
+      "time": "2:25 AM Oct 20 (PDT)",
+      "description": "With DynamoDB recovered, DWFM began re-establishing droplet leases; EC2 APIs returned 'insufficient capacity' errors and EC2 launches began failing (through 10:36 AM)."
+    },
+    {
+      "time": "2:32 AM Oct 20 (PDT)",
+      "description": "All global table replicas were fully caught up."
+    },
+    {
+      "time": "2:40 AM Oct 20 (PDT)",
+      "description": "DynamoDB API error rates returned to normal, ending its period of impact."
+    },
+    {
+      "time": "4:14 AM Oct 20 (PDT)",
+      "description": "Engineers throttled incoming work and began selective restarts of DWFM hosts, clearing queues and allowing leases to be established."
+    },
+    {
+      "time": "5:28 AM Oct 20 (PDT)",
+      "description": "DWFM had established leases with all droplets in us-east-1; new EC2 launches started to succeed, though many requests saw 'request limit exceeded' errors."
+    },
+    {
+      "time": "5:28 AM Oct 20 (PDT)",
+      "description": "Network Manager began propagating network configurations to newly launched instances, with a significant backlog."
+    },
+    {
+      "time": "5:30 AM Oct 20 (PDT)",
+      "description": "Network Load Balancer began experiencing increased connection errors for some load balancers (through 2:09 PM)."
+    },
+    {
+      "time": "6:21 AM Oct 20 (PDT)",
+      "description": "Network Manager latencies increased as it worked through the backlog; new instances could launch but lacked network connectivity."
+    },
+    {
+      "time": "6:52 AM Oct 20 (PDT)",
+      "description": "Monitoring detected NLB health check results alternating between failing and healthy; engineers began remediation. Degraded health checks triggered automatic AZ DNS failover, removing capacity."
+    },
+    {
+      "time": "7:04 AM Oct 20 (PDT)",
+      "description": "From this point, NLB health check failures triggered Lambda instance terminations, leaving Lambda under-scaled; Amazon Connect saw a second period of errors."
+    },
+    {
+      "time": "8:31 AM Oct 20 (PDT)",
+      "description": "STS experienced a second period of API errors due to NLB health check failures (through 9:59 AM)."
+    },
+    {
+      "time": "9:36 AM Oct 20 (PDT)",
+      "description": "Engineers disabled automatic health check failover for NLB, bringing healthy nodes and targets back into service and resolving connection errors."
+    },
+    {
+      "time": "10:36 AM Oct 20 (PDT)",
+      "description": "Network propagation times returned to normal and new EC2 launches operated normally (launches succeeding from 10:37 AM; some instances had connectivity issues until 1:50 PM)."
+    },
+    {
+      "time": "11:23 AM Oct 20 (PDT)",
+      "description": "Engineers began relaxing EC2 request throttles."
+    },
+    {
+      "time": "1:50 PM Oct 20 (PDT)",
+      "description": "All EC2 APIs and new instance launches were operating normally."
+    },
+    {
+      "time": "2:09 PM Oct 20 (PDT)",
+      "description": "Automatic DNS health check failover for NLB was re-enabled after EC2 recovered."
+    },
+    {
+      "time": "2:20 PM Oct 20 (PDT)",
+      "description": "ECS, EKS and Fargate container launch failures and scaling delays ended; the overall event ended."
+    }
+  ]
+}

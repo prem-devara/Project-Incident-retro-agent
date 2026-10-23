@@ -1,0 +1,107 @@
+{
+  "impact_summary": "Customers and internal AWS services relying on DynamoDB in us-east-1 experienced DynamoDB API error rates from 11:48 PM PDT on October 19 to 2:40 AM PDT on October 20, with global table replicas showing prolonged replication lag. EC2 instance launches failed from 2:25 AM to 10:36 AM on October 20, with some newly launched instances lacking connectivity until 1:50 PM, and Network Load Balancer experienced increased connection errors from 5:30 AM to 2:09 PM. Dependent services including Lambda, ECS/EKS/Fargate, STS, Amazon Connect, Redshift, and the AWS Management Console also experienced errors, with some effects lasting until 2:20 PM on October 20 (and Redshift until 4:05 AM on October 21 for some clusters).",
+  "action_items": [
+    {
+      "action": "Add a check during each DNS plan application that verifies the plan generation is newer than the currently active plan for every endpoint update, not only once before application begins, so a delayed Enactor cannot overwrite a newer plan.",
+      "owner_role": "DynamoDB team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Modify the plan clean-up process so it never deletes the currently active plan or leaves a regional endpoint with an empty record set, and add a guard that aborts deletion when the target plan is not confirmed superseded.",
+      "owner_role": "DynamoDB team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Implement automated detection and self-repair for an empty or inconsistent DNS record set on DynamoDB endpoints, including restoring the last known good plan without requiring manual operator intervention.",
+      "owner_role": "DynamoDB team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Create and document an operational runbook for recovering DNS plan state in an inconsistent condition, and rehearse it through game days.",
+      "owner_role": "On-call engineer",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Add an alarm on the regional DynamoDB DNS record count and on Enactor plan lag or retry counts so that empty or stalled DNS state is detected before customer-facing failures begin.",
+      "owner_role": "DynamoDB team",
+      "type": "detect",
+      "priority": "high"
+    },
+    {
+      "action": "Remove or reduce the hard dependency of DWFM lease management on DynamoDB so EC2 control-plane state checks can continue or degrade gracefully during a DynamoDB outage.",
+      "owner_role": "EC2 team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Establish and document a standard operating procedure for mass lease re-establishment after a control-plane outage, including rate-limited recovery and safe DWFM host restart steps.",
+      "owner_role": "EC2 team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Ensure Network Manager propagation backlog is monitored with alarms, and add capacity or prioritization so that network configuration propagation can keep pace with a surge of new instance launches after recovery.",
+      "owner_role": "EC2 networking team",
+      "type": "detect",
+      "priority": "medium"
+    },
+    {
+      "action": "Change the NLB health check subsystem to wait for network state propagation to complete before bringing newly launched instances into service, preventing false health check failures.",
+      "owner_role": "Network Load Balancer team",
+      "type": "prevent",
+      "priority": "high"
+    },
+    {
+      "action": "Add safeguards that limit how much capacity automatic AZ DNS health check failover can remove during degraded health check conditions, and add an operator-accessible kill switch with a documented threshold for disabling it.",
+      "owner_role": "Network Load Balancer team",
+      "type": "mitigate",
+      "priority": "high"
+    },
+    {
+      "action": "Add alerting on alternating or flapping NLB health check results so engineers are paged early, before automatic failover removes capacity.",
+      "owner_role": "Network Load Balancer team",
+      "type": "detect",
+      "priority": "medium"
+    },
+    {
+      "action": "Add automatic recovery for the Lambda SQS polling subsystem so it restarts without manual intervention when it fails, and add health alarms on that subsystem.",
+      "owner_role": "Lambda team",
+      "type": "mitigate",
+      "priority": "medium"
+    },
+    {
+      "action": "Reduce Lambda's dependency on NLB-backed capacity and EC2 launches by maintaining headroom or a pre-provisioned capacity buffer that survives health check failover events.",
+      "owner_role": "Lambda team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Remove the dependency of Redshift IAM user group resolution on the us-east-1 IAM API, or provide a regional fallback, so Redshift in other Regions is not impacted by us-east-1 failures.",
+      "owner_role": "Redshift team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Remove the dependency of console sign-in and STS authentication on us-east-1 DynamoDB and NLB so that IAM authentication can continue for customers during a regional DynamoDB outage.",
+      "owner_role": "IAM team",
+      "type": "prevent",
+      "priority": "medium"
+    },
+    {
+      "action": "Fix the account metadata subsystem so it does not return invalid responses during Support Center regional failover, and add tests covering failover paths.",
+      "owner_role": "AWS Support engineering team",
+      "type": "prevent",
+      "priority": "low"
+    },
+    {
+      "action": "Document and automate the dependency map between core AWS services and us-east-1 foundational services (DynamoDB, EC2, NLB) to support faster impact assessment and cross-team coordination during future incidents.",
+      "owner_role": "Service reliability team",
+      "type": "detect",
+      "priority": "low"
+    }
+  ]
+}

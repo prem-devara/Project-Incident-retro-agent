@@ -1,0 +1,52 @@
+{
+  "factors": [
+    {
+      "factor": "Race condition between DNS Enactors: a delayed Enactor applied an older plan after a newer plan had already been applied, overwriting it",
+      "evidence": "\"the first (delayed) Enactor applied its much older plan to the regional DynamoDB endpoint, overwriting the newer plan.\""
+    },
+    {
+      "factor": "Plan clean-up process deleted the active plan, leaving the regional DNS record empty",
+      "evidence": "\"The second Enactor's clean-up process then deleted this older plan because it was many generations older than the plan it had just applied. As this plan was deleted, all IP addresses for the regional endpoint were immediately removed, leaving an empty DNS record.\""
+    },
+    {
+      "factor": "Automation lacked safeguards to detect and repair an empty DNS record or an inconsistent state, requiring manual intervention",
+      "evidence": "\"Because the active plan was deleted, the system was left in an inconsistent state in which no DNS Enactor could apply subsequent plan updates. The automation did not repair the record. Manual operator intervention was required.\""
+    },
+    {
+      "factor": "Single-region dependency: DynamoDB failure cascaded to many AWS services that depend on it in us-east-1",
+      "evidence": "\"EC2 launches depend on two subsystems... DropletWorkflow Manager (DWFM)... DWFM state checks began to fail, because the process depends on DynamoDB.\" and \"Redshift used an IAM API in us-east-1 to resolve user groups.\""
+    },
+    {
+      "factor": "No established operational recovery procedure for DWFM lease re-establishment after DynamoDB recovery, prolonging EC2 launch failures",
+      "evidence": "\"There was no established operational recovery procedure for this situation, and engineers took care not to cause further issues while attempting multiple mitigation steps.\""
+    },
+    {
+      "factor": "DWFM lease re-establishment at fleet scale timed out and queued retries without forward progress",
+      "evidence": "\"Because of the large number of droplets, establishing new leases took long enough that the work timed out before it completed. Additional work was queued to retry, and DWFM was unable to make forward progress in recovering leases.\""
+    },
+    {
+      "factor": "Network Load Balancer health checks marked new instances unhealthy before network state propagated, causing alternating health results and removal of capacity",
+      "evidence": "\"the health check subsystem brought new EC2 instances into service before their network state had fully propagated, so health checks failed even when NLB nodes and targets were healthy. Health checks alternated between failing and healthy\""
+    },
+    {
+      "factor": "Automatic health check failover amplified load on the health check subsystem, removing capacity from service",
+      "evidence": "\"The alternating results increased load on the health check subsystem, which degraded, delayed health checks and triggered automatic AZ DNS failover.\""
+    },
+    {
+      "factor": "Network Manager backlog from the delayed EC2 recovery slowed propagation of network configuration to new instances",
+      "evidence": "\"Network Manager began propagating network configurations to newly launched instances, with a significant backlog from the delay.\""
+    },
+    {
+      "factor": "Recovery actions such as request throttling and host restarts were needed to clear queues, and throttling caused secondary errors",
+      "evidence": "\"Engineers throttled incoming work and began selective restarts of DWFM hosts\" and \"many requests saw 'request limit exceeded' errors due to the throttling.\""
+    },
+    {
+      "factor": "Cached DNS records and global table replication lag prolonged customer-visible impact after the DNS fix",
+      "evidence": "\"Customers could resolve the DynamoDB endpoint and connect as cached DNS records expired\" (2:25-2:40 AM) and \"Customers with DynamoDB global tables... saw prolonged replication lag to and from us-east-1.\""
+    },
+    {
+      "factor": "Dependent services had cross-region or shared dependencies that spread the impact beyond us-east-1 (e.g., Redshift IAM credential resolution and Support Center metadata)",
+      "evidence": "\"Redshift customers in all Regions could not use IAM user credentials for queries, because Redshift used an IAM API in us-east-1 to resolve user groups.\" and \"an account metadata subsystem returned invalid responses that blocked legitimate users.\""
+    }
+  ]
+}

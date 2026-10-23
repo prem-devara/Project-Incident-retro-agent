@@ -1,0 +1,52 @@
+{
+  "factors": [
+    {
+      "factor": "Race condition between DNS Enactors: a delayed Enactor applied an older plan over a newer one, and the clean-up process of another Enactor then deleted the active plan, leaving an empty DNS record for the regional DynamoDB endpoint",
+      "evidence": "\"the first (delayed) Enactor applied its much older plan to the regional DynamoDB endpoint, overwriting the newer plan. The second Enactor's clean-up process then deleted this older plan because it was many generations older than the plan it had just applied. As this plan was deleted, all IP addresses for the regional endpoint were immediately removed, leaving an empty DNS record.\""
+    },
+    {
+      "factor": "Lack of a one-time plan-freshness check that was sufficient to prevent an older plan from overwriting a newer one, since the check was only performed once before applying a plan rather than during the per-endpoint updates",
+      "evidence": "\"Before it begins to apply a new plan, the Enactor makes a one-time check that its plan is newer than the previously applied plan.\""
+    },
+    {
+      "factor": "Automation did not self-heal the inconsistent state, so the system could not apply subsequent plan updates and required manual operator intervention",
+      "evidence": "\"Because the active plan was deleted, the system was left in an inconsistent state in which no DNS Enactor could apply subsequent plan updates. The automation did not repair the record. Manual operator intervention was required.\""
+    },
+    {
+      "factor": "Strong dependency of EC2 control-plane subsystems (DWFM) on DynamoDB, so the DynamoDB DNS failure cascaded into EC2 lease failures",
+      "evidence": "\"DWFM state checks began to fail, because the process depends on DynamoDB. Droplets would need a new lease before further instance state changes could happen. Between 11:48 PM and 2:24 AM, leases between DWFM and droplets slowly timed out.\""
+    },
+    {
+      "factor": "Lease re-establishment after DynamoDB recovery overwhelmed DWFM, causing timeouts and queued retries with no forward progress, and no established operational recovery procedure existed for this situation",
+      "evidence": "\"Because of the large number of droplets, establishing new leases took long enough that the work timed out before it completed. Additional work was queued to retry, and DWFM was unable to make forward progress in recovering leases. There was no established operational recovery procedure for this situation\""
+    },
+    {
+      "factor": "Network configuration propagation backlog after EC2 capacity was restored, causing new instances to launch without network connectivity",
+      "evidence": "\"Network Manager began propagating network configurations to newly launched instances, with a significant backlog from the delay.\" and \"New instances could launch but lacked network connectivity.\""
+    },
+    {
+      "factor": "NLB health check subsystem removed healthy nodes because it brought instances into service before their network state had fully propagated, and alternating results amplified load",
+      "evidence": "\"the health check subsystem brought new EC2 instances into service before their network state had fully propagated, so health checks failed even when NLB nodes and targets were healthy.\" and \"The alternating results increased load on the health check subsystem, which degraded, delayed health checks and triggered automatic AZ DNS failover.\""
+    },
+    {
+      "factor": "Automatic health check failover in NLB removed capacity during the degraded state, and the mitigation (disabling failover) was only applied after the impact had extended",
+      "evidence": "\"For multi-AZ load balancers, this took capacity out of service, and applications saw connection errors if remaining capacity was insufficient.\" and \"Engineers disabled automatic health check failover for NLB, bringing all healthy nodes and targets back into service\" (at 9:36 AM, after detection at 6:52 AM)"
+    },
+    {
+      "factor": "Downstream services (Lambda, STS, Amazon Connect, ECS/EKS/Fargate) depended on DynamoDB, EC2 or NLB, so failures propagated across many AWS services",
+      "evidence": "\"From 7:04 AM, NLB health check failures triggered instance terminations, leaving Lambda internal systems under-scaled\" and \"STS ... errors again 8:31-9:59 AM due to NLB health check failures.\""
+    },
+    {
+      "factor": "Dependency of internal tooling and of the Support Center and console sign-in on regional DynamoDB and us-east-1 services, which limited recovery actions and customer access",
+      "evidence": "\"Temporary mitigations enabled some internal services to connect to DynamoDB and repaired key internal tooling, unblocking further recovery.\" and \"Redshift customers in all Regions could not use IAM user credentials for queries, because Redshift used an IAM API in us-east-1 to resolve user groups.\""
+    },
+    {
+      "factor": "Lambda internal SQS polling subsystem did not recover automatically after the DynamoDB issue, prolonging impact",
+      "evidence": "\"An internal subsystem polling SQS queues failed and did not recover automatically; it was restored at 4:40 AM.\""
+    },
+    {
+      "factor": "Redshift clusters needing host replacement were blocked because EC2 launches were impaired, extending recovery well beyond the DynamoDB outage",
+      "evidence": "\"Clusters needing host replacement were blocked because EC2 launches were impaired.\""
+    }
+  ]
+}
